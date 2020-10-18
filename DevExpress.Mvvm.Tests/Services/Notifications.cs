@@ -9,7 +9,7 @@ using System.Security.Permissions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
-
+using System.Collections.Generic;
 namespace DevExpress.Mvvm.UI.Tests {
     [TestFixture]
     public class NotificationTests {
@@ -500,6 +500,12 @@ namespace DevExpress.Mvvm.UI.Tests {
             service.CustomNotificationDuration = TimeSpan.FromMilliseconds(1);
             toast = (NotificationService.MvvmCustomNotification)service.CreateCustomNotification(null);
             Assert.AreEqual(1, toast.duration);
+        }
+        [Test, Description("T892461")]
+        public void CreateApplicationWindowNotification() {
+            var service = new NotificationService();
+            service.CustomNotificationScreen = NotificationScreen.ApplicationWindow;
+            service.CreateCustomNotification(null);
         }
 
     }

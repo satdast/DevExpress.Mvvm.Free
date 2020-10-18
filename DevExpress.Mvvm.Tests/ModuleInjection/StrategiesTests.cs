@@ -311,7 +311,8 @@ namespace DevExpress.Mvvm.UI.ModuleInjection.Tests {
             Assert.AreEqual(false, w2.IsLoaded);
             serviceHelper.Dispose();
         }
-        [Test]
+#if !DXCORE3
+        [Test, Retry(3)]
         public void ClosingWindow() {
             UIWindowRegion service = new UIWindowRegion() { RegionName = "region" };
             ModuleManager.DefaultImplementation.GetRegionImplementation("region").RegisterUIRegion(service);
@@ -331,6 +332,7 @@ namespace DevExpress.Mvvm.UI.ModuleInjection.Tests {
             Window w1 = (Window)strategy1.Owner.Target;
             Window w2 = (Window)strategy2.Owner.Target;
             Assert.AreEqual(true, w1.IsActive);
+            Assert.AreEqual(vm1, service.SelectedViewModel);
 
             serviceHelper.CancelViewModelRemoving = true;
             w1.Close();
@@ -338,21 +340,29 @@ namespace DevExpress.Mvvm.UI.ModuleInjection.Tests {
             serviceHelper.AssertViewModelRemoving(1);
             serviceHelper.AssertViewModelRemoved(0);
             Assert.AreEqual(true, w1.IsActive);
+            Assert.AreEqual(vm1, service.SelectedViewModel);
 
             Manager.Remove("region", "1");
             DispatcherHelper.DoEvents();
             serviceHelper.AssertViewModelRemoving(2);
             serviceHelper.AssertViewModelRemoved(0);
             Assert.AreEqual(true, w1.IsActive);
+            Assert.AreEqual(vm1, service.SelectedViewModel);
 
             Manager.Remove("region", "1", false);
             DispatcherHelper.DoEvents();
             serviceHelper.AssertViewModelRemoving(2);
             serviceHelper.AssertViewModelRemoved(1);
+            Assert.AreEqual(vm2, service.SelectedViewModel);
+
+            Manager.Remove("region", "2", false);
+            DispatcherHelper.DoEvents();
+            Assert.AreEqual(null, service.SelectedViewModel);
 
             serviceHelper.Dispose();
             Manager.Clear("region");
         }
+#endif
         [Test]
         public void SetResultWindow() {
             UIWindowRegion service = new UIWindowRegion() { RegionName = "region" };
@@ -381,5 +391,6 @@ namespace DevExpress.Mvvm.UI.ModuleInjection.Tests {
             serviceHelper.Dispose();
             Manager.Clear("region");
         }
+
     }
 }

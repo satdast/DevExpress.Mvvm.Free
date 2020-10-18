@@ -1,3 +1,5 @@
+#if !DXCORE3
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -133,7 +135,8 @@ namespace DevExpress.Mvvm.UI {
             return true;
         }
         protected override void OnAttached() {
-            Apply();
+            if(Items.SourceItems.Any())
+                Apply();
             base.OnAttached();
             AssociatedObject.SetValue(InternalItemsProperty, Items.SourceItems);
         }
@@ -273,3 +276,4 @@ namespace DevExpress.Mvvm.UI {
         #endregion
     }
 }
+#endif

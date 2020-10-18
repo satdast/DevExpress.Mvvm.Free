@@ -8,6 +8,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.ComponentModel;
 using NUnit.Framework;
+using System.Configuration;
+using System.Windows.Threading;
 using System.Windows.Controls;
 
 namespace DevExpress.Mvvm.Tests {
@@ -444,13 +446,16 @@ namespace DevExpress.Mvvm.Tests {
         }
         [Test]
         public void ReleaseTarget_CanExecutePrivate() {
+            WeakReference reference = ReleaseTarget_CanExecutePrivateCore();
+            MemoryLeaksHelper.EnsureCollected(reference);
+        }
+        WeakReference ReleaseTarget_CanExecutePrivateCore() {
             MemoryViewModel commandContainer = new MemoryViewModel();
             WeakReference reference = new WeakReference(commandContainer);
             commandContainer.CreatePrivateCommand((x1, x2) => CreateCommand(x1, x2));
             commandContainer.CreateInternalCommand((x1, x2) => CreateCommand(x1, x2));
-            Assert.IsTrue(reference.IsAlive);
             commandContainer = null;
-            MemoryLeaksHelper.EnsureCollected(reference);
+            return reference;
         }
 
         [Test]
@@ -515,6 +520,18 @@ namespace DevExpress.Mvvm.Tests {
     }
     [TestFixture]
     public class AsyncCommandTests : CommandTests {
+        SynchronizationContext externalContext;
+        [SetUp]
+        public void SetUp() {
+            externalContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
+        }
+        [TearDown]
+        public void TearDown() {
+            SynchronizationContext.SetSynchronizationContext(externalContext);
+            externalContext = null;
+        }
+
         protected override CommandBase<object> CreateCommand(Action execute) {
             if(execute == null)
                 return new AsyncCommand(null) { AllowMultipleExecution = true };
@@ -549,12 +566,11 @@ namespace DevExpress.Mvvm.Tests {
             command.Execute(parameter);
             ((IAsyncCommand)command).Wait(latencyTime);
         }
-
         static TimeSpan latencyTime = TimeSpan.FromSeconds(2);
         bool executingAsyncMethod = false;
         AsyncCommand<int> asyncTestCommand;
 
-        Task AsyncExecuteMethod(int timeout) {
+        Task AsyncExecuteMethod1(int timeout) {
             return Task.Factory.StartNew(() => {
                 for(int i = 0; i < 10; i++) {
                     if(asyncTestCommand.ShouldCancel) {
@@ -580,10 +596,35 @@ namespace DevExpress.Mvvm.Tests {
                 executingAsyncMethod = false;
             });
         }
-
+        Task AsyncExecuteMethod3(int timeout) {
+            return Task.Factory.StartNew(() => {
+                for(int i = 0; i < 10; i++) {
+                    if(asyncTestCommand.ShouldCancel) {
+                        break;
+                    }
+                    if(timeout == 0) Task.Delay(100);
+                    else
+                        Task.Delay(timeout);
+                }
+                executingAsyncMethod = false;
+            });
+        }
+        Task AsyncExecuteMethod4(int timeout) {
+            return Task.Factory.StartNew(() => {
+                for(int i = 0; i < 10; i++) {
+                    if(asyncTestCommand.IsCancellationRequested) {
+                        break;
+                    }
+                    if(timeout == 0) Task.Delay(100);
+                    else
+                        Task.Delay(timeout);
+                }
+                executingAsyncMethod = false;
+            });
+        }
         [Test]
         public void AsyncIsExecuting() {
-            asyncTestCommand = new AsyncCommand<int>(a => AsyncExecuteMethod(a));
+            asyncTestCommand = new AsyncCommand<int>(a => AsyncExecuteMethod1(a));
             Assert.IsFalse(asyncTestCommand.IsExecuting);
             Assert.IsTrue(asyncTestCommand.CanExecute(100));
             executingAsyncMethod = true;
@@ -599,7 +640,7 @@ namespace DevExpress.Mvvm.Tests {
         }
         [Test]
         public void AsyncCancelTest1() {
-            AsyncCancelTestCore((a) => AsyncExecuteMethod(a));
+            AsyncCancelTestCore((a) => AsyncExecuteMethod1(a));
         }
         [Test]
         public void AsyncCancelTest2() {
@@ -625,7 +666,7 @@ namespace DevExpress.Mvvm.Tests {
         }
         [Test]
         public void AsyncCanExecuteTest1() {
-            AsyncCanExecuteTestCore(a => AsyncExecuteMethod(a));
+            AsyncCanExecuteTestCore(a => AsyncExecuteMethod1(a));
         }
         [Test]
         public void AsyncCanExecuteTest2() {
@@ -653,7 +694,7 @@ namespace DevExpress.Mvvm.Tests {
         }
         [Test]
         public void AllowMultipleExecutionTest1() {
-            AllowMultipleExecutionTestCore(a => AsyncExecuteMethod(a));
+            AllowMultipleExecutionTestCore(a => AsyncExecuteMethod1(a));
         }
         [Test]
         public void AllowMultipleExecutionTest2() {
@@ -679,7 +720,7 @@ namespace DevExpress.Mvvm.Tests {
         }
         [Test]
         public void IsExecutingPropertyChangedTest() {
-            asyncTestCommand = new AsyncCommand<int>((a) => AsyncExecuteMethod(a));
+            asyncTestCommand = new AsyncCommand<int>((a) => AsyncExecuteMethod1(a));
             bool isExecutingChanged = false;
 
             ((INotifyPropertyChanged)asyncTestCommand).PropertyChanged += (s, e) => {
@@ -697,7 +738,7 @@ namespace DevExpress.Mvvm.Tests {
         }
         [Test]
         public void WaitTest() {
-            asyncTestCommand = new AsyncCommand<int>((a) => AsyncExecuteMethod(a));
+            asyncTestCommand = new AsyncCommand<int>((a) => AsyncExecuteMethod1(a));
             int isExecutingChangedCount = 0;
             ((INotifyPropertyChanged)asyncTestCommand).PropertyChanged += (s, e) =>
                 e.If(x => x.PropertyName == "IsExecuting").Do(x => isExecutingChangedCount++);
@@ -749,6 +790,53 @@ namespace DevExpress.Mvvm.Tests {
                 }
                 executingAsyncMethod = false;
             });
+        }
+        [Test]
+        public void ExecuteAsyncTest() {
+            asyncTestCommand = new AsyncCommand<int>((a) => AsyncExecuteMethod3(a));
+            int isExecutingChangedCount = 0;
+            ((INotifyPropertyChanged)asyncTestCommand).PropertyChanged += (s, e) =>
+                e.If(x => x.PropertyName == "IsExecuting").Do(x => isExecutingChangedCount++);
+            bool completed = false;
+            asyncTestCommand.ExecuteAsync(100).ContinueWith(x => {
+                Assert.AreEqual(2, isExecutingChangedCount);
+                Assert.AreEqual(false, asyncTestCommand.IsExecuting);
+                completed = true;
+            });
+            Assert.Throws<NotSupportedException>(() => asyncTestCommand.Wait(),
+               "The Wait method is not supported when you use the ExecuteAsync method. Use async/await syntax instead.");
+            WaitCondition(() => completed);
+            Assert.AreEqual(true, completed);
+        }
+        [Test]
+        public void ExecuteAsyncExceptionTest() {
+            asyncTestCommand = new AsyncCommand<int>((a) => {
+                return Task.Factory.StartNew(() => {
+                    throw new ArgumentException("test");
+                });
+            });
+            int isExecutingChangedCount = 0;
+            ((INotifyPropertyChanged)asyncTestCommand).PropertyChanged += (s, e) =>
+                e.If(x => x.PropertyName == "IsExecuting").Do(x => isExecutingChangedCount++);
+            bool completed = false;
+            asyncTestCommand.ExecuteAsync(100).ContinueWith(x => {
+                Assert.AreEqual(2, isExecutingChangedCount);
+                Assert.AreEqual(false, asyncTestCommand.IsExecuting);
+                Assert.AreEqual(true, x.IsFaulted);
+                Assert.AreEqual("test", x.Exception.InnerException.Message);
+                completed = true;
+            });
+            WaitCondition(() => completed);
+            Assert.AreEqual(true, completed);
+        }
+        void WaitCondition(Func<bool> condition) {
+            var start = DateTime.Now;
+            while(!condition()) {
+                if((DateTime.Now - start).TotalMilliseconds > 1000 * 5)
+                    throw new TimeoutException();
+                Thread.Sleep(10);
+                DispatcherHelper.DoEvents();
+            }
         }
     }
 }

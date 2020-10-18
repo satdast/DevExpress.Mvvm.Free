@@ -2,11 +2,13 @@ using DevExpress.Mvvm.UI.Native;
 using DevExpress.Mvvm.UI.Interactivity;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System;
 using DevExpress.Mvvm.Native;
 using System.Windows.Input;
 using System.ComponentModel;
+using DevExpress.Mvvm.UI;
+using DevExpress.Mvvm;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace DevExpress.Mvvm.UI {
     [TargetTypeAttribute(typeof(UserControl))]
@@ -20,21 +22,31 @@ namespace DevExpress.Mvvm.UI {
         public static readonly DependencyProperty ClosingCommandProperty =
             DependencyProperty.Register("ClosingCommand", typeof(ICommand), typeof(CurrentWindowService), new PropertyMetadata(null));
 
+        protected Window GetActualWindow() {
+            if (ActualWindow == null)
+                UpdateActualWindow();
+            return ActualWindow;
+        }
 
+        DXWindowState ICurrentWindowService.WindowState {
+            get { return DXWindowStateConverter.ToDXWindowState(GetActualWindow()?.WindowState ?? WindowState.Normal); }
+            set {
+                var w = GetActualWindow();
+                if(w != null)
+                    w.WindowState = DXWindowStateConverter.ToWindowState(value);
+            }
+        }
         void ICurrentWindowService.Close() {
-            ActualWindow.Do(x => x.Close());
+            GetActualWindow().Do(x => x.Close());
         }
         void ICurrentWindowService.Activate() {
-            ActualWindow.Do(x => x.Activate());
+            GetActualWindow().Do(x => x.Activate());
         }
         void ICurrentWindowService.Hide() {
-            ActualWindow.Do(x => x.Hide());
-        }
-        void ICurrentWindowService.SetWindowState(WindowState state) {
-            ActualWindow.Do(x => x.WindowState = state);
+            GetActualWindow().Do(x => x.Hide());
         }
         void ICurrentWindowService.Show() {
-            ActualWindow.Do(x => x.Show());
+            GetActualWindow().Do(x => x.Show());
         }
 
         protected override void OnActualWindowChanged(Window oldWindow) {

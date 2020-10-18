@@ -33,7 +33,8 @@ namespace DevExpress.Internal.WinApi.Windows.UI.Notifications {
         ToastText01 = 4,
         ToastText02 = 5,
         ToastText03 = 6,
-        ToastText04 = 7
+        ToastText04 = 7,
+        ToastGeneric = 8
     }
 
     [ComImport]
@@ -153,5 +154,33 @@ namespace DevExpress.Internal.WinApi.Windows.UI.Notifications {
     public interface ITypedEventHandler_IToastNotification_Failed {
         [MethodImpl(MethodImplOptions.PreserveSig)]
         int Invoke(IToastNotification sender, IToastFailedEventArgs args);
+    }
+    [ComImport]
+    [Guid("e3bf92f3-c197-436f-8265-0625824f8dac")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface IToastActivatedEventArgs : IInspectable {
+        void IInspectableStub1();
+        void IInspectableStub2();
+        void IInspectableStub3();
+        HResult GetArguments([Out, MarshalAs(47)] out string args);
+    }
+    [ComImport]
+    [Guid("53E31837-6600-4A81-9395-75CFFE746F94")]
+    [ComVisible(true)]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [CLSCompliant(false)]
+    public interface INotificationActivationCallback {
+        void Activate(
+            [In, MarshalAs(UnmanagedType.LPWStr)] string appUserModelId,
+            [In, MarshalAs(UnmanagedType.LPWStr)] string invokedArgs,
+            [In, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 3)] NOTIFICATION_USER_INPUT_DATA[] data,
+            [In, MarshalAs(UnmanagedType.U4)] uint count);
+    }
+    [StructLayout(LayoutKind.Sequential), Serializable]
+    public struct NOTIFICATION_USER_INPUT_DATA {
+        [MarshalAs(UnmanagedType.LPWStr)]
+        public string Key;
+        [MarshalAs(UnmanagedType.LPWStr)]
+        public string Value;
     }
 }

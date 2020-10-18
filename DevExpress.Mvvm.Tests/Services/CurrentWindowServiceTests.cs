@@ -6,10 +6,25 @@ using System.Windows.Media;
 using System.Threading;
 using System.Windows.Data;
 using System.Windows;
+using DevExpress.Mvvm.Xpf;
 
 namespace DevExpress.Mvvm.UI.Tests {
     [TestFixture]
     public class CurrentWindowServiceTests : BaseWpfFixture {
+        [Test(Description = "T486009"), Asynchronous]
+        public void ActualWindow_HiddenWindow() {
+            CurrentWindowService service = new CurrentWindowService();
+            ICurrentWindowService iService = service;
+            Interactivity.Interaction.GetBehaviors(RealWindow).Add(service);
+            try {
+                EnqueueCallback(() => {
+                    Assert.AreSame(RealWindow, service.ActualWindow);
+                });
+                EnqueueTestComplete();
+            } finally {
+                Interactivity.Interaction.GetBehaviors(RealWindow).Remove(service);
+            }
+        }
         [Test, Asynchronous]
         public void ActualWindow() {
             CurrentWindowService service = new CurrentWindowService();
@@ -66,6 +81,30 @@ namespace DevExpress.Mvvm.UI.Tests {
             EnqueueCallback(() => {
                 Assert.AreEqual(WindowState.Maximized, RealWindow.WindowState);
                 iService.SetWindowState(WindowState.Minimized);
+            });
+            EnqueueWindowUpdateLayout();
+            EnqueueCallback(() => {
+                Assert.AreEqual(WindowState.Minimized, RealWindow.WindowState);
+            });
+            EnqueueTestComplete();
+        }
+        [Test, Asynchronous]
+        public void SetWindowState2() {
+            CurrentWindowService service = new CurrentWindowService();
+            ICurrentWindowService iService = service;
+            Assert.AreEqual(DXWindowState.Normal, iService.WindowState);
+            Grid grid = new Grid();
+            Interactivity.Interaction.GetBehaviors(grid).Add(service);
+            RealWindow.Content = grid;
+            EnqueueShowRealWindow();
+            EnqueueCallback(() => {
+                Assert.AreEqual(DXWindowState.Normal, iService.WindowState);
+                iService.WindowState = DXWindowState.Maximized;
+            });
+            EnqueueWindowUpdateLayout();
+            EnqueueCallback(() => {
+                Assert.AreEqual(WindowState.Maximized, RealWindow.WindowState);
+                iService.WindowState = DXWindowState.Minimized;
             });
             EnqueueWindowUpdateLayout();
             EnqueueCallback(() => {

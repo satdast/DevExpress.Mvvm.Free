@@ -1,7 +1,3 @@
-using DevExpress.Mvvm;
-using DevExpress.Mvvm.Native;
-using DevExpress.Mvvm.UI;
-using DevExpress.Mvvm.UI.Native;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -11,14 +7,33 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-
-using WindowBase = System.Windows.Window;
 using System.Windows.Input;
+using DevExpress.Mvvm;
+using DevExpress.Mvvm.Native;
+using DevExpress.Mvvm.UI;
+using DevExpress.Mvvm.UI.Interactivity;
+using DevExpress.Mvvm.UI.Native;
+using DevExpress.Mvvm.Xpf;
+using WindowBase = System.Windows.Window;
 
 namespace DevExpress.Mvvm.UI {
     public enum WindowShowMode { Dialog, Default }
+    [TargetTypeAttribute(typeof(UserControl))]
+    [TargetTypeAttribute(typeof(Window))]
     public class WindowService : ViewServiceBase, IWindowService, IDocumentOwner {
-        static Type DefaultWindowType = typeof(Window);
+        internal static Type GetDefaultWindowType(Style windowStyle) {
+            return typeof(Window);
+        }
+        static Type GetWindowType(Style windowStyle, Type expectedType) {
+            if (windowStyle == null || windowStyle.TargetType == expectedType)
+                return expectedType;
+            if (expectedType.IsAssignableFrom(windowStyle.TargetType))
+                return windowStyle.TargetType;
+            if (windowStyle.TargetType.IsAssignableFrom(expectedType))
+                return expectedType;
+            return null;
+        }
+
         const string WindowTypeException = "WindowType show be derived from the Window type";
 
         public static readonly DependencyProperty WindowStartupLocationProperty =
@@ -30,7 +45,7 @@ namespace DevExpress.Mvvm.UI {
             DependencyProperty.Register("WindowStyle", typeof(Style), typeof(WindowService), new PropertyMetadata(null));
         public static readonly DependencyProperty WindowTypeProperty =
             DependencyProperty.Register("WindowType", typeof(Type), typeof(WindowService),
-            new PropertyMetadata(DefaultWindowType, (d, e) => ((WindowService)d).OnWindowTypeChanged()));
+            new PropertyMetadata(null, (d, e) => ((WindowService)d).OnWindowTypeChanged()));
         public static readonly DependencyProperty TitleProperty =
             DependencyProperty.Register("Title", typeof(string), typeof(WindowService),
             new PropertyMetadata(string.Empty, (d, e) => ((WindowService)d).OnTitleChanged()));
@@ -62,8 +77,10 @@ namespace DevExpress.Mvvm.UI {
             get { return (WindowShowMode)GetValue(WindowShowModeProperty); }
             set { SetValue(WindowShowModeProperty, value); }
         }
+        Type ActualWindowType { get { return WindowType ?? GetDefaultWindowType(WindowStyle); } }
+
         protected virtual IWindowSurrogate CreateWindow(object view) {
-            IWindowSurrogate window = WindowProxy.GetWindowSurrogate(Activator.CreateInstance(WindowType ?? DefaultWindowType));
+            IWindowSurrogate window = WindowProxy.GetWindowSurrogate(Activator.CreateInstance(ActualWindowType));
             UpdateThemeName(window.RealWindow);
             window.RealWindow.Content = view;
             InitializeDocumentContainer(window.RealWindow, Window.ContentProperty, WindowStyle);
@@ -84,6 +101,9 @@ namespace DevExpress.Mvvm.UI {
         void SetTitleBinding() {
             if(string.IsNullOrEmpty(Title))
                 DocumentUIServiceBase.SetTitleBinding(window.RealWindow.Content, WindowBase.TitleProperty, window.RealWindow, true);
+            else {
+                window.RealWindow.Title = Title;
+            }
         }
         void OnWindowClosing(object sender, CancelEventArgs e) {
             DocumentViewModelHelper.OnClose(GetViewModel(window.RealWindow), e);
@@ -109,7 +129,6 @@ namespace DevExpress.Mvvm.UI {
             }
             object view = CreateAndInitializeView(documentType, viewModel, parameter, parentViewModel, this);
             window = CreateWindow(view);
-            window.RealWindow.Title = Title ?? string.Empty;
             SetTitleBinding();
             window.Closing += OnWindowClosing;
             window.Closed += OnWindowClosed;
@@ -144,9 +163,12 @@ namespace DevExpress.Mvvm.UI {
                 window.Closing -= OnWindowClosing;
             window.Close();
         }
-        void IWindowService.SetWindowState(WindowState state) {
-            if(window != null)
-                window.RealWindow.WindowState = state;
+        DXWindowState IWindowService.WindowState {
+            get { return DXWindowStateConverter.ToDXWindowState(window?.RealWindow.WindowState ?? WindowState.Normal); }
+            set {
+                if(window != null)
+                    window.RealWindow.WindowState = DXWindowStateConverter.ToWindowState(value);
+            }
         }
     }
 }

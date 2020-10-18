@@ -1,18 +1,21 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26430.16
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29319.158
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevExpress.Mvvm.Wpf.Free", "DevExpress.Mvvm\DevExpress.Mvvm.Wpf.Free.csproj", "{6DC18CB2-A40A-4E9C-9A74-B99EE545B59A}"
 EndProject
-Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "DevExpress.Mvvm.TestClasses.VB.Wpf", "DevExpress.Mvvm.TestClasses\DevExpress.Mvvm.TestClasses.VB.Wpf.vbproj", "{C1EBD3E0-BA67-409D-95F2-C442DC9B26A6}"
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "DevExpress.Mvvm.TestClasses.VB.Wpf.Free", "DevExpress.Mvvm.TestClasses\DevExpress.Mvvm.TestClasses.VB.Wpf.Free.vbproj", "{C1EBD3E0-BA67-409D-95F2-C442DC9B26A7}"
+	ProjectSection(ProjectDependencies) = postProject
+		{6DC18CB2-A40A-4E9C-9A74-B99EE545B59A} = {6DC18CB2-A40A-4E9C-9A74-B99EE545B59A}
+	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevExpress.Mvvm.Tests.Wpf.Free", "DevExpress.Mvvm.Tests\DevExpress.Mvvm.Tests.Wpf.Free.csproj", "{E50AC0CD-550A-4E66-911D-529B62A1C3A9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevExpress.Mvvm.Tests.Wpf.Free", "DevExpress.Mvvm.Tests\DevExpress.Mvvm.Tests.Wpf.Free.csproj", "{E50AC0CD-550A-4E66-911D-529B62A1C3AA}"
 	ProjectSection(ProjectDependencies) = postProject
 		{EFDD2122-DAB0-4F42-9DD6-1F450465C08C} = {EFDD2122-DAB0-4F42-9DD6-1F450465C08C}
 		{6B3F4292-57D3-4F31-A0CD-F228FCC1046B} = {6B3F4292-57D3-4F31-A0CD-F228FCC1046B}
 		{6DC18CB2-A40A-4E9C-9A74-B99EE545B59A} = {6DC18CB2-A40A-4E9C-9A74-B99EE545B59A}
-		{C1EBD3E0-BA67-409D-95F2-C442DC9B26A6} = {C1EBD3E0-BA67-409D-95F2-C442DC9B26A6}
+		{C1EBD3E0-BA67-409D-95F2-C442DC9B26A7} = {C1EBD3E0-BA67-409D-95F2-C442DC9B26A7}
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevExpress.Mvvm.UI.Wpf.Free", "DevExpress.Mvvm.UI\DevExpress.Mvvm.UI.Wpf.Free.csproj", "{EFDD2122-DAB0-4F42-9DD6-1F450465C08C}"
@@ -22,6 +25,24 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevExpress.Mvvm.UI.Wpf.Free
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevExpress.Mvvm.UI.ApplicationJumpTaskLauncher", "DevExpress.Mvvm.UI.ApplicationJumpTaskLauncher\DevExpress.Mvvm.UI.ApplicationJumpTaskLauncher.csproj", "{6B3F4292-57D3-4F31-A0CD-F228FCC1046B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "netcore3", "netcore3", "{04646B3B-9FB9-4512-BDBC-37AB16071789}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DevExpress.Mvvm.Wpf.NetCore.Desktop.Free", "DevExpress.Mvvm\DevExpress.Mvvm.Wpf.NetCore.Desktop.Free.csproj", "{7545BCBC-E63B-082A-2109-556174DE4D1A}"
+EndProject
+Project("{778DAE3C-4631-46EA-AA77-85C1314464D9}") = "DevExpress.Mvvm.TestClasses.VB.NetCore.Desktop.Free", "DevExpress.Mvvm.TestClasses\DevExpress.Mvvm.TestClasses.VB.NetCore.Desktop.Free.vbproj", "{502F13A4-EF48-4015-B0D8-B52E6099CF95}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevExpress.Mvvm.UI.Wpf.NetCore.Desktop.Free", "DevExpress.Mvvm.UI\DevExpress.Mvvm.UI.Wpf.NetCore.Desktop.Free.csproj", "{8E649F7E-FE4D-4924-BD45-F2B82C4512C3}"
+	ProjectSection(ProjectDependencies) = postProject
+		{7545BCBC-E63B-082A-2109-556174DE4D1A} = {7545BCBC-E63B-082A-2109-556174DE4D1A}
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DevExpress.Mvvm.Tests.Wpf.NetCore.Desktop.Free", "DevExpress.Mvvm.Tests\DevExpress.Mvvm.Tests.Wpf.NetCore.Desktop.Free.csproj", "{CA4AFACD-89FD-0C7D-2A4B-E4107BB5AB91}"
+	ProjectSection(ProjectDependencies) = postProject
+		{8E649F7E-FE4D-4924-BD45-F2B82C4512C3} = {8E649F7E-FE4D-4924-BD45-F2B82C4512C3}
+		{502F13A4-EF48-4015-B0D8-B52E6099CF95} = {502F13A4-EF48-4015-B0D8-B52E6099CF95}
+		{7545BCBC-E63B-082A-2109-556174DE4D1A} = {7545BCBC-E63B-082A-2109-556174DE4D1A}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,12 +54,12 @@ Global
 		{6DC18CB2-A40A-4E9C-9A74-B99EE545B59A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6DC18CB2-A40A-4E9C-9A74-B99EE545B59A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6DC18CB2-A40A-4E9C-9A74-B99EE545B59A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C1EBD3E0-BA67-409D-95F2-C442DC9B26A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C1EBD3E0-BA67-409D-95F2-C442DC9B26A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C1EBD3E0-BA67-409D-95F2-C442DC9B26A6}.Release|Any CPU.ActiveCfg = Debug|Any CPU
-		{E50AC0CD-550A-4E66-911D-529B62A1C3A9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E50AC0CD-550A-4E66-911D-529B62A1C3A9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E50AC0CD-550A-4E66-911D-529B62A1C3A9}.Release|Any CPU.ActiveCfg = Debug|Any CPU
+		{C1EBD3E0-BA67-409D-95F2-C442DC9B26A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C1EBD3E0-BA67-409D-95F2-C442DC9B26A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C1EBD3E0-BA67-409D-95F2-C442DC9B26A7}.Release|Any CPU.ActiveCfg = Debug|Any CPU
+		{E50AC0CD-550A-4E66-911D-529B62A1C3AA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E50AC0CD-550A-4E66-911D-529B62A1C3AA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E50AC0CD-550A-4E66-911D-529B62A1C3AA}.Release|Any CPU.ActiveCfg = Debug|Any CPU
 		{EFDD2122-DAB0-4F42-9DD6-1F450465C08C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{EFDD2122-DAB0-4F42-9DD6-1F450465C08C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EFDD2122-DAB0-4F42-9DD6-1F450465C08C}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -47,8 +68,31 @@ Global
 		{6B3F4292-57D3-4F31-A0CD-F228FCC1046B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6B3F4292-57D3-4F31-A0CD-F228FCC1046B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6B3F4292-57D3-4F31-A0CD-F228FCC1046B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7545BCBC-E63B-082A-2109-556174DE4D1A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7545BCBC-E63B-082A-2109-556174DE4D1A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7545BCBC-E63B-082A-2109-556174DE4D1A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7545BCBC-E63B-082A-2109-556174DE4D1A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{502F13A4-EF48-4015-B0D8-B52E6099CF95}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{502F13A4-EF48-4015-B0D8-B52E6099CF95}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{502F13A4-EF48-4015-B0D8-B52E6099CF95}.Release|Any CPU.ActiveCfg = Debug|Any CPU
+		{8E649F7E-FE4D-4924-BD45-F2B82C4512C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8E649F7E-FE4D-4924-BD45-F2B82C4512C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8E649F7E-FE4D-4924-BD45-F2B82C4512C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8E649F7E-FE4D-4924-BD45-F2B82C4512C3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CA4AFACD-89FD-0C7D-2A4B-E4107BB5AB91}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CA4AFACD-89FD-0C7D-2A4B-E4107BB5AB91}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CA4AFACD-89FD-0C7D-2A4B-E4107BB5AB91}.Release|Any CPU.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{7545BCBC-E63B-082A-2109-556174DE4D1A} = {04646B3B-9FB9-4512-BDBC-37AB16071789}
+		{502F13A4-EF48-4015-B0D8-B52E6099CF95} = {04646B3B-9FB9-4512-BDBC-37AB16071789}
+		{8E649F7E-FE4D-4924-BD45-F2B82C4512C3} = {04646B3B-9FB9-4512-BDBC-37AB16071789}
+		{CA4AFACD-89FD-0C7D-2A4B-E4107BB5AB91} = {04646B3B-9FB9-4512-BDBC-37AB16071789}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B8689CD8-D217-49BE-A477-2DF3D739198A}
 	EndGlobalSection
 EndGlobal

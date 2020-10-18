@@ -1,4 +1,5 @@
 using DevExpress.Mvvm.UI.Interactivity;
+using DevExpress.Mvvm.UI.Native;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -8,10 +9,86 @@ using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Input;
 
+using DxDialogResult = System.Windows.Forms.DialogResult;
+
+namespace DevExpress.Mvvm.UI.Native {
+    public interface IFolderBrowserDialog : ICommonDialog {
+        string Description { get; set; }
+        Environment.SpecialFolder RootFolder { get; set; }
+        bool ShowNewFolderButton { get; set; }
+        string SelectedPath { get; set; }
+    }
+}
+
 namespace DevExpress.Mvvm.UI {
     [Browsable(true), EditorBrowsable(EditorBrowsableState.Always)]
     [TargetType(typeof(System.Windows.Controls.UserControl)), TargetType(typeof(Window))]
     public class FolderBrowserDialogService : ServiceBase, IFolderBrowserDialogService {
+        protected class FolderBrowserDialogAdapter : IFolderBrowserDialog {
+            readonly FolderBrowserDialog fileDialog;
+
+            public FolderBrowserDialogAdapter() {
+                this.fileDialog = new FolderBrowserDialog();
+            }
+
+            Environment.SpecialFolder IFolderBrowserDialog.RootFolder {
+                get { return fileDialog.RootFolder; }
+                set { fileDialog.RootFolder = value; }
+            }
+            bool IFolderBrowserDialog.ShowNewFolderButton {
+                get { return fileDialog.ShowNewFolderButton; }
+                set { fileDialog.ShowNewFolderButton = value; }
+            }
+            string IFolderBrowserDialog.SelectedPath {
+                get { return fileDialog.SelectedPath; }
+                set { fileDialog.SelectedPath = value; }
+            }
+            string IFolderBrowserDialog.Description {
+                get { return fileDialog.Description; }
+                set { fileDialog.Description = value; }
+            }
+            void ICommonDialog.Reset() {
+                fileDialog.Reset();
+            }
+            DxDialogResult ICommonDialog.ShowDialog() {
+                var dialogResult = fileDialog.ShowDialog();
+                return Convert(dialogResult);
+            }
+            DxDialogResult ICommonDialog.ShowDialog(object ownerWindow) {
+                var window = ownerWindow as Window;
+                var dialogResult = window == null ? fileDialog.ShowDialog() : fileDialog.ShowDialog(new Win32WindowWrapper(window));
+                return Convert(dialogResult);
+            }
+            event EventHandler ICommonDialog.HelpRequest {
+                add { fileDialog.HelpRequest += value; }
+                remove { fileDialog.HelpRequest -= value; }
+            }
+
+            void IDisposable.Dispose() {
+                fileDialog.Dispose();
+            }
+            static DxDialogResult Convert(DialogResult result) {
+                switch (result) {
+                    case DialogResult.OK:
+                        return DxDialogResult.OK;
+                    case DialogResult.Cancel:
+                        return DxDialogResult.Cancel;
+                    case DialogResult.Abort:
+                        return DxDialogResult.Abort;
+                    case DialogResult.Retry:
+                        return DxDialogResult.Retry;
+                    case DialogResult.Ignore:
+                        return DxDialogResult.Ignore;
+                    case DialogResult.Yes:
+                        return DxDialogResult.Yes;
+                    case DialogResult.No:
+                        return DxDialogResult.No;
+                    default:
+                        return DxDialogResult.None;
+                }
+            }
+        }
+
         public static readonly DependencyProperty DescriptionProperty =
             DependencyProperty.Register("Description", typeof(string), typeof(FolderBrowserDialogService), new PropertyMetadata(string.Empty));
         public static readonly DependencyProperty RootFolderProperty =
@@ -53,13 +130,20 @@ namespace DevExpress.Mvvm.UI {
             remove { Dialog.HelpRequest -= value; }
         }
 
-        FolderBrowserDialog Dialog;
+        IFolderBrowserDialog Dialog;
         public FolderBrowserDialogService() {
-            Dialog = new FolderBrowserDialog();
+            Dialog = CreateFolderBrowserDialog();
             HelpRequest += (d, e) => {
                 if(HelpRequestCommand != null && HelpRequestCommand.CanExecute(e))
                     HelpRequestCommand.Execute(e);
             };
+        }
+        protected virtual IFolderBrowserDialog CreateFolderBrowserDialog() {
+            return new FolderBrowserDialogAdapter();
+        }
+
+        protected object GetFileDialog() {
+            return Dialog;
         }
 
         string resultPath = string.Empty;
@@ -76,9 +160,9 @@ namespace DevExpress.Mvvm.UI {
                 Dialog.SelectedPath = StartPath;
             var res = Dialog.ShowDialog();
             resultPath = Dialog.SelectedPath;
-            if(res == DialogResult.OK)
+            if(res == DxDialogResult.OK)
                 return true;
-            if(res == DialogResult.Cancel)
+            if(res == DxDialogResult.Cancel)
                 return false;
             throw new InvalidOperationException();
         }

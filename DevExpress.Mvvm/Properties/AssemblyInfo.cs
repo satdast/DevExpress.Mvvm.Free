@@ -26,6 +26,10 @@ using DevExpress.Mvvm.Native;
 [assembly: XmlnsPrefix(XmlNamespaceConstants.MvvmNamespaceDefinition, XmlNamespaceConstants.MvvmPrefix)]
 [assembly: XmlnsDefinition(XmlNamespaceConstants.MvvmNamespaceDefinition, XmlNamespaceConstants.MvvmNamespace)]
 
+[assembly: XmlnsPrefix(XmlNamespaceConstants.GanttNamespaceDefinition, XmlNamespaceConstants.GanttPrefix)]
+[assembly: XmlnsDefinition(XmlNamespaceConstants.GanttNamespaceDefinition, XmlNamespaceConstants.GanttNamespace)]
+
+
 [assembly: AssemblyVersion(AssemblyInfo.Version)]
 [assembly: AssemblyFileVersion(AssemblyInfo.FileVersion)]
 

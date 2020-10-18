@@ -158,6 +158,46 @@ namespace DevExpress.Mvvm.Tests.Behaviors {
             Assert.AreEqual(CompositeCommand.CompositeCommand, control.CustomData2);
         }
 
+        [Test]
+        public void CompositeCommandCanExecuteConditionTest() {
+            CompositeCommand = new CompositeCommandBehavior();
+            Assert.AreEqual(CompositeCommandExecuteCondition.AllCommandsCanBeExecuted, CompositeCommand.CanExecuteCondition);
+
+            var firstCommand = new MockCommand(1) { IsEnabled = false };
+            var secondCommand = new MockCommand(2);
+            CompositeCommand.Commands.Add(new CommandItem() { Command = firstCommand, CommandParameter = 11 });
+            CompositeCommand.Commands.Add(new CommandItem() { Command = secondCommand, CommandParameter = 12 });
+
+            Assert.IsFalse(CompositeCommand.CompositeCommand.CanExecute(null));
+            CompositeCommand.CompositeCommand.Execute(null);
+            Assert.IsNull(firstCommand.CommandExecuteResult);
+            Assert.IsNull(secondCommand.CommandExecuteResult);
+
+            CompositeCommand.CanExecuteCondition = CompositeCommandExecuteCondition.AnyCommandCanBeExecuted;
+            Assert.IsTrue(CompositeCommand.CompositeCommand.CanExecute(null));
+            CompositeCommand.CompositeCommand.Execute(null);
+            Assert.IsNull(firstCommand.CommandExecuteResult);
+            Assert.AreEqual(2, secondCommand.CommandExecuteResult);
+
+            secondCommand.Reset();
+            secondCommand.IsEnabled = false;
+            Assert.IsFalse(CompositeCommand.CompositeCommand.CanExecute(null));
+            CompositeCommand.CompositeCommand.Execute(null);
+            Assert.IsNull(firstCommand.CommandExecuteResult);
+            Assert.IsNull(secondCommand.CommandExecuteResult);
+        }
+
+        [Test]
+        public void CommandItemMemoryLeaksTest() {
+            var command = new MockCommand(1);
+            var commandItemReference = CreateCommandItemReference(command);
+            MemoryLeaksHelper.EnsureCollected(new[] { commandItemReference });
+        }
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        WeakReference CreateCommandItemReference(ICommand command) {
+            return new WeakReference(new CommandItem { Command = command });
+        }
+
         #region Mock
         class MockControl : Control {
             public static readonly DependencyProperty CustomDataProperty =

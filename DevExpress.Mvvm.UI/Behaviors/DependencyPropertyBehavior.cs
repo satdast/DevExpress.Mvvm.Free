@@ -48,7 +48,7 @@ namespace DevExpress.Mvvm.UI {
             EventHelper.UnsubscribeFromEvent(EventAssociatedObject, ShortEventName);
         }
         void OnEvent(object sender, object eventArgs) {
-            Binding = PropertyInfo.GetValue(PropertyAssociatedObject, null);
+            Binding = PropertyAssociatedObject != null ? PropertyInfo.GetValue(PropertyAssociatedObject, null) : null;
         }
         void OnBindingPropertyChanged() {
             if(PropertyAssociatedObject == null)
@@ -64,6 +64,7 @@ namespace DevExpress.Mvvm.UI {
             var namePaths = name.Split('.');
             object currentObject = AssociatedObject;
             foreach(var propertyPath in namePaths.Take(namePaths.Length - 1)) {
+                if (currentObject == null) return null;
                 currentObject = currentObject.GetType().GetProperty(propertyPath, bindingFlags).GetValue(currentObject, null);
             }
             return currentObject;

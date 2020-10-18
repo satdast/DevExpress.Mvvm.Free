@@ -9,6 +9,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using DevExpress.Mvvm.POCO;
 
 namespace DevExpress.Mvvm.UI.ModuleInjection.Tests {
     internal class TestEmptyViewModel {

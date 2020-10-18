@@ -134,7 +134,7 @@ namespace DevExpress.Internal.WinApi {
             return other.Equals((object)this);
         }
         public override int GetHashCode() {
-            return formatId.GetHashCode() ^ propertyId;
+            return unchecked(propertyId * 5381 + formatId.GetHashCode());
         }
         public override bool Equals(object obj) {
             if(obj == null)
@@ -237,7 +237,11 @@ namespace DevExpress.Internal.WinApi {
                 PropVariantNativeMethods.PropVariantGetStringElem(pv, i, ref val);
                 array.SetValue(val, i);
             });
-
+            cache.Add(typeof(Guid), (pv, array, i) => {
+                byte[] guid = new byte[16];
+                Marshal.Copy(pv._ptr, guid, 0, 16);
+                array.SetValue(new Guid(guid), i);
+            });
             return cache;
         }
         public static PropVariant FromObject(object value) {
@@ -440,6 +444,13 @@ namespace DevExpress.Internal.WinApi {
             _valueType = (ushort)VarEnum.VT_R8;
             _double = value;
         }
+        [System.Security.SecuritySafeCritical]
+        public PropVariant(Guid value) {
+            _valueType = (ushort)VarEnum.VT_CLSID;
+            byte[] guid = ((Guid)value).ToByteArray();
+            _ptr = Marshal.AllocCoTaskMem(guid.Length);
+            Marshal.Copy(guid, 0, _ptr, guid.Length);
+        }
         internal void SetIUnknown(object value) {
             _valueType = (ushort)VarEnum.VT_UNKNOWN;
             _ptr = Marshal.GetIUnknownForObject(value);
@@ -548,6 +559,8 @@ namespace DevExpress.Internal.WinApi {
                         return GetVector<DateTime>();
                     case (VarEnum.VT_VECTOR | VarEnum.VT_DECIMAL):
                         return GetVector<Decimal>();
+                    case VarEnum.VT_CLSID:
+                        return GetVector<Guid>();
                     default:
                         return null;
                 }

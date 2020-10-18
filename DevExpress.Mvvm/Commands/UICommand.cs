@@ -1,11 +1,18 @@
-using DevExpress.Mvvm.Native;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using DevExpress.Mvvm.Native;
 
 namespace DevExpress.Mvvm {
+    public enum DialogButtonAlignment {
+        Right,
+        Center,
+        Left,
+    }
+
     public class UICommand : BindableBase, IUICommand {
         object id = null;
         public object Id {
@@ -37,15 +44,47 @@ namespace DevExpress.Mvvm {
             get { return tag; }
             set { SetProperty(ref tag, value, () => Tag); }
         }
+        bool allowCloseWindow = true;
+        public bool AllowCloseWindow {
+            get { return allowCloseWindow; }
+            set { SetProperty(ref allowCloseWindow, value, () => AllowCloseWindow); }
+        }
 
+        [Browsable(false), EditorBrowsable(EditorBrowsableState.Never)]
+        public DialogButtonAlignment ActualAlignment {
+            get {
+                if(alignment != DialogButtonAlignment.Right)
+                    return alignment;
+                if(placement != Dock.Right && placement.Equals(Dock.Left))
+                    return DialogButtonAlignment.Left;
+                return alignment;
+            }
+        }
+
+        DialogButtonAlignment alignment = DialogButtonAlignment.Right;
+        public DialogButtonAlignment Alignment {
+            get { return alignment; }
+            set { SetProperty(ref alignment, value, () => Alignment); }
+        }
+
+        Dock placement = Dock.Right;
+
+        [Browsable(false), EditorBrowsable(EditorBrowsableState.Never)]
+        public Dock Placement {
+            get { return placement; }
+            set { SetProperty(ref placement, value, () => Placement); }
+        }
         public UICommand() { }
-        public UICommand(object id, object caption, ICommand command, bool isDefault, bool isCancel, object tag = null) {
+        public UICommand(object id, object caption, ICommand command, bool isDefault, bool isCancel, object tag = null, bool allowCloseWindow = true, Dock placement = Dock.Right, DialogButtonAlignment alignment = DialogButtonAlignment.Right) {
             this.id = id;
             this.caption = caption;
             this.command = command;
             this.isDefault = isDefault;
             this.isCancel = isCancel;
             this.tag = tag;
+            this.allowCloseWindow = allowCloseWindow;
+            this.placement = placement;
+            this.alignment = alignment;
         }
 
         public static List<UICommand> GenerateFromMessageButton(MessageButton dialogButtons, IMessageButtonLocalizer buttonLocalizer, MessageResult? defaultButton = null, MessageResult? cancelButton = null) {
@@ -64,7 +103,7 @@ namespace DevExpress.Mvvm {
         static List<UICommand> GenerateFromMessageButton(MessageButton dialogButtons, bool usePlatformSpecificTag, IMessageButtonLocalizer buttonLocalizer, MessageResult? defaultButton, MessageResult? cancelButton) {
             List<UICommand> commands = new List<UICommand>();
             if(dialogButtons == MessageButton.OK) {
-                UICommand okCommand = CreateDefaultButonCommand(MessageResult.OK, usePlatformSpecificTag, buttonLocalizer.Localize);
+                UICommand okCommand = CreateDefaultButtonCommand(MessageResult.OK, usePlatformSpecificTag, buttonLocalizer.Localize);
                 okCommand.IsDefault = defaultButton == null || defaultButton == MessageResult.OK;
                 okCommand.IsCancel = cancelButton == MessageResult.OK;
 
@@ -72,8 +111,8 @@ namespace DevExpress.Mvvm {
                 return commands;
             }
             if(dialogButtons == MessageButton.OKCancel) {
-                UICommand okCommand = CreateDefaultButonCommand(MessageResult.OK, usePlatformSpecificTag, buttonLocalizer.Localize);
-                UICommand cancelCommand = CreateDefaultButonCommand(MessageResult.Cancel, usePlatformSpecificTag, buttonLocalizer.Localize);
+                UICommand okCommand = CreateDefaultButtonCommand(MessageResult.OK, usePlatformSpecificTag, buttonLocalizer.Localize);
+                UICommand cancelCommand = CreateDefaultButtonCommand(MessageResult.Cancel, usePlatformSpecificTag, buttonLocalizer.Localize);
                 okCommand.IsDefault = defaultButton == null || defaultButton == MessageResult.OK;
                 cancelCommand.IsDefault = defaultButton == MessageResult.Cancel;
                 okCommand.IsCancel = cancelButton == MessageResult.OK;
@@ -84,8 +123,8 @@ namespace DevExpress.Mvvm {
                 return commands;
             }
             if(dialogButtons == MessageButton.YesNo) {
-                UICommand yesCommand = CreateDefaultButonCommand(MessageResult.Yes, usePlatformSpecificTag, buttonLocalizer.Localize);
-                UICommand noCommand = CreateDefaultButonCommand(MessageResult.No, usePlatformSpecificTag, buttonLocalizer.Localize);
+                UICommand yesCommand = CreateDefaultButtonCommand(MessageResult.Yes, usePlatformSpecificTag, buttonLocalizer.Localize);
+                UICommand noCommand = CreateDefaultButtonCommand(MessageResult.No, usePlatformSpecificTag, buttonLocalizer.Localize);
                 yesCommand.IsDefault = defaultButton == null || defaultButton == MessageResult.Yes;
                 noCommand.IsDefault = defaultButton == MessageResult.No;
                 yesCommand.IsCancel = cancelButton == MessageResult.Yes;
@@ -96,9 +135,9 @@ namespace DevExpress.Mvvm {
                 return commands;
             }
             if(dialogButtons == MessageButton.YesNoCancel) {
-                UICommand yesCommand = CreateDefaultButonCommand(MessageResult.Yes, usePlatformSpecificTag, buttonLocalizer.Localize);
-                UICommand noCommand = CreateDefaultButonCommand(MessageResult.No, usePlatformSpecificTag, buttonLocalizer.Localize);
-                UICommand cancelCommand = CreateDefaultButonCommand(MessageResult.Cancel, usePlatformSpecificTag, buttonLocalizer.Localize);
+                UICommand yesCommand = CreateDefaultButtonCommand(MessageResult.Yes, usePlatformSpecificTag, buttonLocalizer.Localize);
+                UICommand noCommand = CreateDefaultButtonCommand(MessageResult.No, usePlatformSpecificTag, buttonLocalizer.Localize);
+                UICommand cancelCommand = CreateDefaultButtonCommand(MessageResult.Cancel, usePlatformSpecificTag, buttonLocalizer.Localize);
                 yesCommand.IsDefault = defaultButton == null || defaultButton == MessageResult.Yes;
                 noCommand.IsDefault = defaultButton == MessageResult.No;
                 cancelCommand.IsDefault = defaultButton == MessageResult.Cancel;
@@ -113,25 +152,29 @@ namespace DevExpress.Mvvm {
             }
             return commands;
         }
-        static UICommand CreateDefaultButonCommand(MessageResult result, bool usePlatformSpecificTag, Func<MessageResult, string> getButtonCaption) {
+        static UICommand CreateDefaultButtonCommand(MessageResult result, bool usePlatformSpecificTag, Func<MessageResult, string> getButtonCaption) {
             object tag = usePlatformSpecificTag ? result.ToMessageBoxResult() : (object)result;
-            return new UICommand() {
-                Id = tag,
-                Caption = getButtonCaption(result),
-                Command = null,
-                Tag = tag,
-            };
+            return new DefaultButtonCommand(tag, getButtonCaption(result), tag);
         }
         #region IUICommand
         EventHandler executed;
         event EventHandler IUICommand.Executed {
-            add { executed += value;  }
-            remove { executed -= value;            }
+            add { executed += value; }
+            remove { executed -= value; }
         }
         void IUICommand.RaiseExecuted() {
             if(executed != null)
                 executed(this, EventArgs.Empty);
         }
         #endregion
+        #region DefaultButtonCommand
+        class DefaultButtonCommand : UICommand {
+            public DefaultButtonCommand(object id, string caption, object tag) {
+                this.id = id;
+                this.caption = caption;
+                this.tag = tag;
+            }
+        }
+        #endregion DefaultButtonCommand
     }
 }

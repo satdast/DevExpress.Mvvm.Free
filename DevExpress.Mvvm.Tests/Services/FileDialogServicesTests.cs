@@ -4,10 +4,15 @@ using System;
 using System.Linq;
 using System.ComponentModel;
 using System.Collections.Generic;
+using DevExpress.Mvvm.UI.Native;
+using System.Windows;
+using DxDialogResult = System.Windows.Forms.DialogResult;
+using DxFileDialogCustomPlaces = System.Windows.Forms.FileDialogCustomPlacesCollection;
 
 namespace DevExpress.Mvvm.UI.Tests {
+    public abstract class FileDialogServiceBaseTests { }
     [TestFixture]
-    public class SaveFileDialogServiceTests {
+    public class SaveFileDialogServiceTests : FileDialogServiceBaseTests {
         [Test]
         public void DefaultValues() {
             SaveFileDialogService service = new SaveFileDialogService();
@@ -36,7 +41,7 @@ namespace DevExpress.Mvvm.UI.Tests {
 
     }
     [TestFixture]
-    public class OpenFileDialogServiceTests {
+    public class OpenFileDialogServiceTests : FileDialogServiceBaseTests {
         [Test]
         public void DefaultValues() {
             OpenFileDialogService service = new OpenFileDialogService();
@@ -58,6 +63,8 @@ namespace DevExpress.Mvvm.UI.Tests {
             Assert.AreEqual(false, service.Multiselect);
 
             IOpenFileDialogService iService = service;
+            Assert.AreEqual(false, iService.Multiselect);
+
             Assert.IsNull(iService.File);
             Assert.AreEqual(0, iService.Files.Count());
         }
@@ -98,11 +105,19 @@ namespace DevExpress.Mvvm.UI.Tests {
             public string FileName { get; set; }
             public string DefaultExt { get; set; }
 
+            public string SafeFileName { get; private set; }
+
+            public string[] SafeFileNames { get; private set; }
+
+            public DxFileDialogCustomPlaces CustomPlaces { get; private set; }
+
             public event CancelEventHandler FileOk;
             public event EventHandler HelpRequest { add { } remove { } }
-            public void Reset() { }
 
-            public DialogResult ShowDialog() {
+            public void Reset() { }
+            public void Dispose() { }
+
+            public DxDialogResult ShowDialog() {
                 FileNames = new[] { "initFileName" };
                 var cancelEventArgs = new CancelEventArgs();
                 while(true) {
@@ -112,7 +127,10 @@ namespace DevExpress.Mvvm.UI.Tests {
                     if(!cancelEventArgs.Cancel)
                         break;
                 }
-                return DialogResult.OK;
+                return DxDialogResult.OK;
+            }
+            public DxDialogResult ShowDialog(object owner) {
+                return ShowDialog();
             }
         }
 

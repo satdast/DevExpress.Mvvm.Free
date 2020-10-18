@@ -31,6 +31,7 @@ namespace DevExpress.Mvvm {
         public virtual Type ResolveViewModelType(string name) {
             IDictionary<string, string> properties;
             Type res = ResolveType(name, out properties);
+            if (res == null) return null;
             bool isPOCO = GetIsPOCOViewModelType(res, properties);
             return isPOCO ? ViewModelSource.GetPOCOType(res) : res;
         }
@@ -55,6 +56,8 @@ namespace DevExpress.Mvvm {
         }
         object IViewModelLocator.ResolveViewModel(string name) {
             Type type = ((IViewModelLocator)this).ResolveViewModelType(name);
+            if (type == null)
+                return null;
             return CreateInstance(type, name);
         }
     }

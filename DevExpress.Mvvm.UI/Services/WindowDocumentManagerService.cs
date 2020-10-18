@@ -127,7 +127,8 @@ namespace DevExpress.Mvvm.UI {
         public static readonly DependencyProperty SetWindowOwnerProperty =
             DependencyProperty.Register("SetWindowOwner", typeof(bool), typeof(WindowedDocumentUIService), new PropertyMetadata(true));
         public static readonly DependencyProperty WindowTypeProperty =
-            DependencyProperty.Register("WindowType", typeof(Type), typeof(WindowedDocumentUIService), new PropertyMetadata(typeof(Window)));
+            DependencyProperty.Register("WindowType", typeof(Type), typeof(WindowedDocumentUIService), new PropertyMetadata(null));
+
         public static readonly DependencyProperty DocumentShowModeProperty =
             DependencyProperty.Register("DocumentShowMode", typeof(WindowShowMode), typeof(WindowedDocumentUIService),
             new PropertyMetadata(WindowShowMode.Default));
@@ -170,9 +171,10 @@ namespace DevExpress.Mvvm.UI {
             get { return (WindowShowMode)GetValue(DocumentShowModeProperty); }
             set { SetValue(DocumentShowModeProperty, value); }
         }
+        Type ActualWindowType { get { return WindowType ?? WindowService.GetDefaultWindowType(WindowStyle); } }
 
         protected virtual IWindowSurrogate CreateWindow(object view) {
-            IWindowSurrogate window = WindowProxy.GetWindowSurrogate(Activator.CreateInstance(WindowType));
+            IWindowSurrogate window = WindowProxy.GetWindowSurrogate(Activator.CreateInstance(ActualWindowType));
             UpdateThemeName(window.RealWindow);
             window.RealWindow.Content = view;
             if(SetWindowOwner) window.RealWindow.Owner = Window.GetWindow(AssociatedObject);

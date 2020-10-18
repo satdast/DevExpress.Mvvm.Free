@@ -353,6 +353,12 @@ namespace DevExpress.Mvvm.Native {
                 : null;
         }
         static Type GetMetadataClassType(Type componentType) {
+            return GetMetadataClassTypeCore(componentType);
+        }
+        static Type GetFilteringMetadataClassType(Type componentType) {
+            return GetFilteringMetadataClassTypeCore(componentType);
+        }
+        static Type GetMetadataClassTypeCore(Type componentType) {
             Type metadataTypeAttributeType = componentType.IsEnum ? typeof(EnumMetadataTypeAttribute) :
                 typeof(MetadataTypeAttribute);
             object[] metadataTypeAttributes = componentType.GetCustomAttributes(metadataTypeAttributeType, false);
@@ -360,7 +366,7 @@ namespace DevExpress.Mvvm.Native {
                 return null;
             return (Type)metadataTypeAttributes[0].GetType().GetProperty("MetadataClassType", BindingFlags.Instance | BindingFlags.Public).GetValue(metadataTypeAttributes[0], null);
         }
-        static Type GetFilteringMetadataClassType(Type componentType) {
+        static Type GetFilteringMetadataClassTypeCore(Type componentType) {
             if(componentType.IsEnum) return null;
             var attrs = componentType.GetCustomAttributes(false);
             if(attrs == null || !attrs.Any()) return null;

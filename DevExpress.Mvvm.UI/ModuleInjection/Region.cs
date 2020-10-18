@@ -6,6 +6,8 @@ using DevExpress.Mvvm.UI.Native;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -48,9 +50,12 @@ namespace DevExpress.Mvvm.UI.ModuleInjection {
         public object SelectedViewModel { get { return (object)GetValue(SelectedViewModelProperty); } protected set { SetValue(SelectedViewModelPropertyKey, value); } }
         public bool SetParentViewModel { get { return (bool)GetValue(SetParentViewModelProperty); } set { SetValue(SetParentViewModelProperty, value); } }
         public object ParentViewModel { get { return (object)GetValue(ParentViewModelProperty); } set { SetValue(ParentViewModelProperty, value); } }
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public bool WaitForInitialization { get; set; }
 
         public UIRegionBase() {
             viewModels = new ObservableCollection<object>();
+            WaitForInitialization = true;
         }
         protected DOTargetWrapper Target { get; private set; }
         protected internal IModuleManagerImplementation ActualModuleManager { get { return ModuleManager ?? DevExpress.Mvvm.ModuleInjection.ModuleManager.DefaultImplementation; } }
@@ -64,6 +69,13 @@ namespace DevExpress.Mvvm.UI.ModuleInjection {
         protected virtual void InitViewModel(object vm) {
             var iSupportPVM = vm as ISupportParentViewModel;
             if(!SetParentViewModel || iSupportPVM == null) return;
+            if (iSupportPVM == ActualParentViewModel) {
+                Trace.WriteLine(
+                    "MIF: UIRegion (" + RegionName + ") " +
+                    "failed to set ParentViewModel. " +
+                    "Bind the UIRegion.ParentViewModel property manually.");
+                return;
+            }
             iSupportPVM.ParentViewModel = ActualParentViewModel;
         }
         protected virtual void ClearViewModel(object vm) {
@@ -74,9 +86,9 @@ namespace DevExpress.Mvvm.UI.ModuleInjection {
         protected abstract void DoInject(object vm, Type vType);
         protected abstract void DoUninject(object vm);
         protected abstract void DoClear();
-        protected abstract void OnSelectedViewModelChanged(object oldValue, object newValue);
+        protected abstract void OnSelectedViewModelChanged(object oldValue, object newValue, bool focus);
         void OnSelectedViewModelPropertyChanged(object oldValue, object newValue) {
-            OnSelectedViewModelChanged(oldValue, newValue);
+            OnSelectedViewModelChanged(oldValue, newValue, focusOnSelectedViewModelChanged);
             var oldVMKey = ActualModuleManager.GetRegion(RegionName).GetKey(oldValue);
             var newVMKey = ActualModuleManager.GetRegion(RegionName).GetKey(newValue);
             var e = new NavigationEventArgs(RegionName, oldValue, newValue, oldVMKey, newVMKey);
@@ -87,11 +99,14 @@ namespace DevExpress.Mvvm.UI.ModuleInjection {
             base.OnAttached();
             Target = new DOTargetWrapper(AssociatedObject);
             if(Target.IsNull) ModuleInjectionException.CannotAttach();
-            OnInitialized();
+            if(Target.IsInitialized || !WaitForInitialization)
+                OnInitialized();
+            else Target.Initialized += OnTargetInitialized;
             Target.DataContextChanged += OnTargetDataContextChanged;
         }
         protected override void OnDetaching() {
             Target.DataContextChanged -= OnTargetDataContextChanged;
+            Target.Initialized -= OnTargetInitialized;
             OnUninitializing();
             Target = null;
             base.OnDetaching();
@@ -108,6 +123,10 @@ namespace DevExpress.Mvvm.UI.ModuleInjection {
         void OnTargetDataContextChanged(object sender, DependencyPropertyChangedEventArgs e) {
             InitViewModels();
         }
+        void OnTargetInitialized(object sender, EventArgs e) {
+            Target.Initialized -= OnTargetInitialized;
+            OnInitialized();
+        }
 
         #region IUIRegion
         IEnumerable<object> IUIRegion.ViewModels { get { return viewModels; } }
@@ -115,12 +134,13 @@ namespace DevExpress.Mvvm.UI.ModuleInjection {
             get { return SelectedViewModel; }
             set {
                 if(SelectedViewModel == value) {
-                    OnSelectedViewModelChanged(SelectedViewModel, SelectedViewModel);
+                    OnSelectedViewModelChanged(SelectedViewModel, SelectedViewModel, focusOnSelectedViewModelChanged);
                     return;
                 }
                 SelectedViewModel = value;
             }
         }
+        bool focusOnSelectedViewModelChanged = true;
 
         void IUIRegion.Inject(object viewModel, Type viewType) {
             if(viewModel == null) return;
@@ -144,6 +164,11 @@ namespace DevExpress.Mvvm.UI.ModuleInjection {
         }
         readonly ObservableCollection<object> viewModels;
 
+        void IUIRegion.SelectViewModel(object vm, bool focus) {
+            focusOnSelectedViewModelChanged = focus;
+            ((IUIRegion)this).SelectedViewModel = vm;
+            focusOnSelectedViewModelChanged = true;
+        }
         object IUIRegion.GetView(object viewModel) {
             return GetView(viewModel);
         }
@@ -192,12 +217,11 @@ namespace DevExpress.Mvvm.UI.ModuleInjection {
         public static void SetRegion(DependencyObject obj, string value) { obj.SetValue(RegionProperty, value); }
         static void OnRegionChanged(DependencyObject obj, string oldValue, string newValue) {
             BehaviorCollection bCol = Interaction.GetBehaviors(obj);
-            UIRegion serv = bCol.OfType<UIRegion>().FirstOrDefault();
-            if(serv != null) {
-                serv.RegionName = newValue;
-                return;
-            }
-            bCol.Add(new UIRegion() { RegionName = newValue });
+            UIRegion oldUIRegion = bCol.OfType<UIRegion>().FirstOrDefault();
+            if(oldUIRegion != null)
+                bCol.Remove(oldUIRegion);
+            if(!string.IsNullOrEmpty(newValue))
+                bCol.Add(new UIRegion() { RegionName = newValue });
         }
         static UIRegion() {
             RegionProperty =
@@ -222,7 +246,7 @@ namespace DevExpress.Mvvm.UI.ModuleInjection {
         protected override void OnInitialized() {
             Strategy.Initialize(new StrategyOwner(this));
             base.OnInitialized();
-            OnSelectedViewModelChanged(SelectedViewModel, SelectedViewModel);
+            OnSelectedViewModelChanged(SelectedViewModel, SelectedViewModel, false);
         }
         protected override void OnUninitializing() {
             Strategy.Uninitialize();
@@ -240,12 +264,12 @@ namespace DevExpress.Mvvm.UI.ModuleInjection {
         protected override void DoClear() {
             Strategy.Clear();
         }
-        protected override void OnSelectedViewModelChanged(object oldValue, object newValue) {
-            if(Strategy.IsInitialized && Target.IsLoaded) Strategy.Select(newValue);
+        protected override void OnSelectedViewModelChanged(object oldValue, object newValue, bool focus) {
+            if(Strategy.IsInitialized && Target.IsLoaded) Strategy.Select(newValue, focus);
         }
         void OnLoaded(object sender, EventArgs e) {
             if(SelectedViewModel != null)
-                OnSelectedViewModelChanged(SelectedViewModel, SelectedViewModel);
+                OnSelectedViewModelChanged(SelectedViewModel, SelectedViewModel, false);
             else SelectedViewModel = Strategy.SelectedViewModel;
         }
 
@@ -255,7 +279,7 @@ namespace DevExpress.Mvvm.UI.ModuleInjection {
             public StrategyOwner(UIRegion owner)
                 : base(owner, owner.AssociatedObject) { }
             public override void SelectViewModel(object viewModel) {
-                if(Owner.Target.IsLoaded)
+                if(Owner.Target != null && Owner.Target.IsLoaded)
                     base.SelectViewModel(viewModel);
             }
         }
@@ -308,7 +332,7 @@ namespace DevExpress.Mvvm.UI.ModuleInjection {
             DoForeachStrategy(x => x.Close());
             ClearStrategies();
         }
-        protected override void OnSelectedViewModelChanged(object oldValue, object newValue) {
+        protected override void OnSelectedViewModelChanged(object oldValue, object newValue, bool focus) {
             GetStrategy(newValue).Do(x => x.Activate());
         }
         protected virtual FrameworkElement CreateWindow(object vm) {
@@ -321,11 +345,14 @@ namespace DevExpress.Mvvm.UI.ModuleInjection {
             w.WindowStartupLocation = WindowStartupLocation;
             if(WindowStyle != null) w.Style = WindowStyle;
             if(WindowStyleSelector != null) w.Style = WindowStyleSelector.SelectStyle(vm, w);
-            if(SetWindowOwner && !IsMainWindow && AssociatedObject is FrameworkElement)
-                ViewServiceBase.UpdateWindowOwner(w, (FrameworkElement)AssociatedObject);
+            if(SetWindowOwner && !IsMainWindow && Application.Current != null) {
+                w.Owner =
+                    Application.Current.Windows.OfType<Window>().FirstOrDefault(x => x.IsActive)
+                    ?? Application.Current.MainWindow;
+            }
             if(!IsMainWindow && AssociatedObject is FrameworkElement)
                 ViewServiceBase.UpdateThemeName(w, (FrameworkElement)AssociatedObject);
-            if(IsMainWindow)
+            if(IsMainWindow && Application.Current != null)
                 Application.Current.MainWindow = w;
             return w;
         }
@@ -347,6 +374,8 @@ namespace DevExpress.Mvvm.UI.ModuleInjection {
             if(strategy == null) return;
             result = strategy.Result;
             strategies.Remove(vm);
+            if (SelectedViewModel == vm)
+                SelectedViewModel = null;
         }
         void ClearStrategies() {
             foreach(var strategy in strategies.Values)
@@ -373,8 +402,8 @@ namespace DevExpress.Mvvm.UI.ModuleInjection {
             public StrategyOwner(UIWindowRegion owner, FrameworkElement window)
                 : base(owner, window) { }
             public override void RemoveViewModel(object viewModel) {
-                base.RemoveViewModel(viewModel);
                 Owner.RemoveStrategy(viewModel);
+                base.RemoveViewModel(viewModel);
             }
             public override void ConfigureChild(DependencyObject child) {
                 base.ConfigureChild(child);

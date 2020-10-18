@@ -1,0 +1,165 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <ProjectGuid>{CA4AFACD-89FD-0C7D-2A4B-E4107BB5AB91}</ProjectGuid>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <EnableDefaultItems>False</EnableDefaultItems>
+    <UseWPF>True</UseWPF>
+    <UseWindowsForms>True</UseWindowsForms>
+    <Configurations>Debug;Release</Configurations>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>False</AppendTargetFrameworkToOutputPath>
+    <RootNamespace>DevExpress.Mvvm.Tests</RootNamespace>
+    <AssemblyName>DevExpress.Mvvm.Tests.Free</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <FileAlignment>512</FileAlignment>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <OutputType>Library</OutputType>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>..\DevExpress.Mvvm.Key\StrongKey.snk</AssemblyOriginatorKeyFile>
+    <IntermediateOutputPath>obj.NetCore.Desktop.Free</IntermediateOutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <WarningLevel>4</WarningLevel>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <ErrorReport>prompt</ErrorReport>
+    <OutputPath>..\Bin\NETCoreDesktop\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;MVVM;DXCORE3;FREE;</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="DevExpress.Mvvm">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Bin\NETCoreDesktop\DevExpress.Mvvm.dll</HintPath>
+    </Reference>
+    <Reference Include="DevExpress.Mvvm.UI">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Bin\NETCoreDesktop\DevExpress.Mvvm.UI.dll</HintPath>
+    </Reference>
+    <Reference Include="DevExpress.Mvvm.TestClasses.VB">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Bin\NETCoreDesktop\DevExpress.Mvvm.TestClasses.VB.Free.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Behaviors\AttachedBehaviorTests.cs" />
+    <Compile Include="Behaviors\BehaviorsTemplateTests.cs" />
+    <Compile Include="Behaviors\CompositeCommandBehaviorTests.cs" />
+    <Compile Include="Behaviors\ConfirmationBehaviorTests.cs" />
+    <Compile Include="Behaviors\DependencyPropertyBehaviorTests.cs" />
+    <Compile Include="Behaviors\EnumItemsSourceBehaviorTests.cs" />
+    <Compile Include="Behaviors\FunctionToCommandBehaviorTests.cs" />
+    <Compile Include="Behaviors\ValidationErrorsHostBehaviorTests.cs" />
+    <Compile Include="CollectionBindingHelperTests.cs" />
+    <Compile Include="DefaultMessageBoxButtonLocalizerTests.cs" />
+    <Compile Include="DelegateCommandTests.cs" />
+    <Compile Include="DesignTimeHelperTests.cs" />
+    <Compile Include="DXBinding\BindingTests.cs" />
+    <Compile Include="DXBinding\CommandTests.cs" />
+    <Compile Include="DXBinding\EventTests.cs" />
+    <Compile Include="DXBinding\ParserTests.cs" />
+    <Compile Include="DXDataTemplateSelectorTests.cs" />
+    <Compile Include="EnumHelperTests.cs" />
+    <Compile Include="ExpressionHelperTests.cs" />
+    <Compile Include="MessengerTests.cs" />
+    <Compile Include="MetadataBuilderTests.cs" />
+    <Compile Include="ModuleInjection\CommonTests.cs" />
+    <Compile Include="ModuleInjection\ModuleInjectionTestsBase.cs" />
+    <Compile Include="ModuleInjection\Obsolete.cs" />
+    <Compile Include="ModuleInjection\SerializationTests.cs" />
+    <Compile Include="ModuleInjection\StrategiesTests.cs" />
+    <Compile Include="Mvvm.UI\ItemsControlMouseEventArgsConverterTests.cs" />
+    <Compile Include="Mvvm.UI\LayoutTreeHelperTests.cs" />
+    <Compile Include="Behaviors\FunctionBindingBehaviorTests.cs" />
+    <Compile Include="Mvvm.UI\ViewLocatorTests.cs" />
+    <Compile Include="Services\ApplicationJumpListService\JumpActionsManagerClient.cs" />
+    <Compile Include="Services\CurrentWindowServiceTests.cs" />
+    <Compile Include="Services\DispatcherServiceTests.cs" />
+    <Compile Include="Services\SplashScreenServiceTests.cs" />
+    <Compile Include="Services\TaskbarButtonServiceTests.cs" />
+    <Compile Include="Services\TaskbarListTestHelper.cs" />
+    <Compile Include="Services\ViewHelperTests.cs" />
+    <Compile Include="Mvvm.UI\ConvertersTests.cs" />
+    <Compile Include="Mvvm.UI\EventToCommandTests.cs" />
+    <Compile Include="Behaviors\FocusBehaviorTests.cs" />
+    <Compile Include="Mvvm.UI\ImageLoader2Tests.cs" />
+    <Compile Include="Mvvm.UI\ViewModelExtensionsTests.cs" />
+    <Compile Include="Mvvm.UI\ViewModelSourceExtensionTests.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\ApplicationJumpListService\ApplicationJumpListServiceTests.cs" />
+    <Compile Include="Services\ApplicationJumpListService\AsyncTestFixture.cs" />
+    <Compile Include="Services\ApplicationJumpListService\JumpActionsManagerTests.cs" />
+    <Compile Include="Services\ApplicationJumpListService\NativeResourceManagerTests.cs" />
+    <Compile Include="Services\DialogServiceBaseTests.cs" />
+    <Compile Include="Services\DocumentManagerServiceBaseTests.cs" />
+    <Compile Include="Services\FileDialogServicesTests.cs" />
+    <Compile Include="Services\MessageBoxServiceBaseTests.cs" />
+    <Compile Include="Services\Notifications.cs" />
+    <Compile Include="Services\ServiceContainerBaseTests.cs" />
+    <Compile Include="Services\WindowedDocumentUIServiceTests.cs" />
+    <Compile Include="TestUtils\DispatcherHelper.cs" />
+    <Compile Include="TestUtils\GCTestHelpers.cs" />
+    <Compile Include="TestUtils\IsolatedDomainTestHelper.cs" />
+    <Compile Include="TestUtils\MemoryLeaksHelper.cs" />
+    <Compile Include="UICommandTests.cs" />
+    <Compile Include="ViewModels\BindableBaseTests.cs" />
+    <Compile Include="ViewModels\ViewModelBaseTests.cs" />
+    <Compile Include="ViewModels\ViewModelLocatorTests.cs" />
+    <Compile Include="ViewModels\ViewModelSourceTests.cs" />
+    <Compile Include="Views\EventToCommandTestView.xaml.cs">
+      <DependentUpon>EventToCommandTestView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\EventToCommandTestViewModel.cs" />
+    <Compile Include="VisualTestUtils\AssertHelper.cs" />
+    <Compile Include="VisualTestUtils\Attributes.cs" />
+    <Compile Include="VisualTestUtils\BaseWpfFixture.cs" />
+    <Compile Include="VisualTestUtils\DependencyPropertiesConsistencyChecker.cs" />
+    <Compile Include="VisualTestUtils\DObjectChecker.cs" />
+    <Compile Include="VisualTestUtils\FixtureTag.cs" />
+    <Compile Include="VisualTestUtils\TestWindow.cs" />
+    <Compile Include="VisualTestUtils\UITestHelper.cs" />
+    <Compile Include="VisualTestUtils\WpfTestWindow.cs" />
+    <Compile Include="WeakEventTests.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+    <None Include="Views\EventToCommandTestView.SL.xaml" />
+    <Page Include="Views\EventToCommandTestView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Services\ApplicationJumpListService\Code_Central.png" />
+    <Resource Include="Services\ApplicationJumpListService\demoicon.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Icons\icon1.ico" />
+    <Resource Include="Icons\icon2.ico" />
+    <Resource Include="Icons\icon3.ico" />
+    <Resource Include="Icons\icon4.ico" />
+    <Resource Include="Icons\icon5.ico" />
+    <Resource Include="Icons\icon6.ico" />
+    <Resource Include="Icons\icon7.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Behaviors\TestImages\Copy.png" />
+    <Resource Include="Behaviors\TestImages\Cut.png" />
+    <Resource Include="Behaviors\TestImages\Delete.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Images\redoTestSvg.svg" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.9.0"/>
+    <PackageReference Include="NUnit3TestAdapter" Version="3.12.0"/>
+    <PackageReference Include="NUnit" Version="3.12.0"/>
+    <PackageReference Include="System.Management" Version="4.5.0" />
+    <PackageReference Include="System.ComponentModel.Annotations" Version="4.5.0" />
+    <PackageReference Include="System.ServiceModel.Http" Version="4.5.3" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.6.0" />
+  </ItemGroup>
+</Project>
+

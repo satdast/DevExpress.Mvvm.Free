@@ -81,64 +81,6 @@ namespace DevExpress.Mvvm.UI.ModuleInjection.Tests {
         }
 
         [Test]
-        public void SerializeState() {
-            string logicalState = null;
-            string visualState = null;
-            LogicalInfo logicalInfo = null;
-            VisualInfo visualInfo = null;
-
-            Manager.Register("R", new Module("1", () => new VMTest()));
-            Manager.Register("R", new Module("2", () => new VMTest() { Value = "Test" }, ViewLocator.Default.GetViewTypeName(typeof(View1_BaseTests))));
-            Manager.Register("R", new Module("3", () => ViewModelSource.Create(() => new VMTest()), typeof(View1_BaseTests)));
-            Manager.Register("R", new Module("4", () => ViewModelSource.Create(() => new VMTest() { Value = "Test" })));
-            Manager.Inject("R", "1");
-            Manager.Inject("R", "2");
-            Manager.Inject("R", "3");
-            Manager.Inject("R", "4");
-            ContentControl c = new ContentControl();
-            UIRegion.SetRegion(c, "R");
-            Window.Content = c;
-            Window.Show();
-
-            Manager.Save(out logicalState, out visualState);
-            logicalInfo = LogicalInfo.Deserialize(logicalState);
-            visualInfo = VisualInfo.Deserialize(visualState);
-            Assert.AreEqual(1, logicalInfo.Regions.Count());
-            Assert.AreEqual(0, visualInfo.Regions[0].Items.Count());
-            Assert.AreEqual("1", logicalInfo.Regions[0].SelectedViewModelKey);
-            Func<int, RegionItemInfo> getItem = x => logicalInfo.Regions[0].Items[x];
-
-            Assert.AreEqual("1", getItem(0).Key);
-            Assert.AreEqual(null, getItem(0).ViewName);
-            Assert.AreEqual(typeof(VMTest).FullName, getItem(0).ViewModelName);
-            Assert.AreEqual(typeof(VMTest).AssemblyQualifiedName, getItem(0).ViewModelStateType);
-            var vmState = (VMTest)StateSerializer.Default.DeserializeState(getItem(0).ViewModelState.State, Type.GetType(getItem(0).ViewModelStateType));
-            Assert.AreEqual(null, vmState.Value);
-
-            Assert.AreEqual("2", getItem(1).Key);
-            Assert.AreEqual(typeof(View1_BaseTests).FullName, getItem(1).ViewName);
-            Assert.AreEqual(typeof(VMTest).FullName, getItem(1).ViewModelName);
-            Assert.AreEqual(typeof(VMTest).AssemblyQualifiedName, getItem(1).ViewModelStateType);
-            vmState = (VMTest)StateSerializer.Default.DeserializeState(getItem(1).ViewModelState.State, Type.GetType(getItem(1).ViewModelStateType));
-            Assert.AreEqual("Test", vmState.Value);
-
-            Assert.AreEqual("3", getItem(2).Key);
-            Assert.AreEqual(typeof(View1_BaseTests).FullName, getItem(2).ViewName);
-            Assert.AreEqual("IsPOCOViewModel=True;" + typeof(VMTest).FullName, getItem(2).ViewModelName);
-            Assert.AreNotEqual(typeof(VMTest).AssemblyQualifiedName, getItem(2).ViewModelStateType);
-            Assert.AreEqual(ViewModelSource.Create(() => new VMTest()).GetType().AssemblyQualifiedName, getItem(2).ViewModelStateType);
-            vmState = (VMTest)StateSerializer.Default.DeserializeState(getItem(2).ViewModelState.State, ViewModelSource.Create(() => new VMTest()).GetType());
-            Assert.AreEqual(null, vmState.Value);
-
-            Assert.AreEqual("4", getItem(3).Key);
-            Assert.AreEqual(null, getItem(3).ViewName);
-            Assert.AreEqual("IsPOCOViewModel=True;" + typeof(VMTest).FullName, getItem(3).ViewModelName);
-            Assert.AreNotEqual(typeof(VMTest).AssemblyQualifiedName, getItem(3).ViewModelStateType);
-            Assert.AreEqual(ViewModelSource.Create(() => new VMTest()).GetType().AssemblyQualifiedName, getItem(3).ViewModelStateType);
-            vmState = (VMTest)StateSerializer.Default.DeserializeState(getItem(3).ViewModelState.State, ViewModelSource.Create(() => new VMTest()).GetType());
-            Assert.AreEqual("Test", vmState.Value);
-        }
-        [Test]
         public void DeserializeState() {
             string logicalState = null;
             string visualState = null;
@@ -147,7 +89,9 @@ namespace DevExpress.Mvvm.UI.ModuleInjection.Tests {
             Manager.Register("R", new Module("1", () => vm = new VMTest() { Value = "Test" }));
             Manager.Inject("R", "1");
             ContentControl c = new ContentControl();
+            c.BeginInit();
             UIRegion.SetRegion(c, "R");
+            c.EndInit();
 
             Manager.Save(out logicalState, out visualState);
             Manager.Restore(logicalState, visualState);
@@ -188,6 +132,10 @@ namespace DevExpress.Mvvm.UI.ModuleInjection.Tests {
         public void DisableEnable() {
             ContentControl c1 = new ContentControl();
             ContentControl c2 = new ContentControl();
+            c1.BeginInit();
+            c1.EndInit();
+            c2.BeginInit();
+            c2.EndInit();
             UIRegion.SetRegion(c1, "R1");
             UIRegion.SetRegion(c2, "R2");
             Manager.Register("R1", new Module("1", () => new VMTest()));

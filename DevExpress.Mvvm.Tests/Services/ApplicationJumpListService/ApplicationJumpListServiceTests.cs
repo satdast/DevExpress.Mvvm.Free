@@ -14,6 +14,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shell;
 using System.Reflection;
+using System.Windows.Controls;
 
 namespace DevExpress.Mvvm.UI.Tests {
     public static class ApplicationJumpListServiceTestsImageSourceHelper {
@@ -37,11 +38,13 @@ namespace DevExpress.Mvvm.UI.Tests {
             }
         }
     }
+#if !DXCORE3
     [TestFixture]
     public class ApplicationJumpListServiceTests : BaseWpfFixture {
         TestJumpActionsManager jumpActionsManager;
         TestNativeJumpList nativeJumpList;
         IApplicationJumpListService applicationJumpListService;
+        ApplicationJumpListService applicationJumpListServiceInstance;
 
         protected override void SetUpCore() {
             base.SetUpCore();
@@ -50,10 +53,13 @@ namespace DevExpress.Mvvm.UI.Tests {
             NativeResourceManager.ProductNameOverride = "DevExpress.Xpf.Core Tests Long Path Test Long Path Test Long Path Test";
             NativeResourceManager.VersionOverride = AssemblyInfo.Version;
             nativeJumpList = new TestNativeJumpList();
+            applicationJumpListService = applicationJumpListServiceInstance = CreateTestService(nativeJumpList, out jumpActionsManager);
+        }
+        static TestApplicationJumpListService CreateTestService(TestNativeJumpList nativeJumpList, out TestJumpActionsManager jumpActionsManager) {
             jumpActionsManager = new TestJumpActionsManager();
-            applicationJumpListService = new TestApplicationJumpListService(nativeJumpList, jumpActionsManager);
-            Assert.IsNotNull(applicationJumpListService);
+            var applicationJumpListService = new TestApplicationJumpListService(nativeJumpList, jumpActionsManager);
             applicationJumpListService.Items.Clear();
+            return applicationJumpListService;
         }
         protected override void TearDownCore() {
             string resourcesFolder = NativeResourceManager.ExpandVariables(NativeResourceManager.ResourcesFolder);
@@ -66,7 +72,7 @@ namespace DevExpress.Mvvm.UI.Tests {
         }
         [Test]
         public void FillJumpListInXaml_AttachToWindow_ShowWindow_CheckApplied() {
-            applicationJumpListService.Items.Add(new ApplicationJumpPathInfo() { Path = "1.txt" });
+            applicationJumpListServiceInstance.Items.Add(new ApplicationJumpPath() { Path = "1.txt" });
             Interaction.GetBehaviors(Window).Add((ServiceBase)applicationJumpListService);
             EnqueueShowWindow();
             Assert.IsTrue(Window.IsLoaded);
@@ -296,6 +302,36 @@ namespace DevExpress.Mvvm.UI.Tests {
             Assert.IsTrue(applicationJumpListService.Items.AddOrReplace(task));
             Assert.AreEqual(2, applicationJumpListService.Items.Count);
         }
+        [Test]
+        public void DisableAutomaticallyApplyItemsOnAttachingIfNoAnyItems() {
+            foreach(var automaticallyApplyItemsOnAttaching in new[] { true, false }) {
+                int executeCounter = 0;
+                var nativeJumpList = new TestNativeJumpList();
+                Func<Action> app = () => {
+                    var ui = new Button();
+                    TestJumpActionsManager jumpActionsManager;
+                    var service = CreateTestService(nativeJumpList, out jumpActionsManager);
+                    if(automaticallyApplyItemsOnAttaching)
+                        service.Items.Add(new ApplicationJumpPath() { Path = "123" });
+                    Interaction.GetBehaviors(ui).Add(service);
+                    IApplicationJumpListService i = service;
+                    Action apply = () => {
+                        i.Items.Add(new ApplicationJumpTaskInfo() { Title = "Execute", Action = () => ++executeCounter });
+                        i.Apply();
+                    };
+                    return apply;
+                };
+                var initialCount = automaticallyApplyItemsOnAttaching ? 1 : 0;
+                var process1 = app();
+                Assert.AreEqual(initialCount, nativeJumpList.AppliedList.JumpItems.Count);
+                process1();
+                Assert.AreEqual(initialCount + 1, nativeJumpList.AppliedList.JumpItems.Count);
+                var process2 = app();
+                Assert.AreEqual(automaticallyApplyItemsOnAttaching ? initialCount : initialCount + 1, nativeJumpList.AppliedList.JumpItems.Count);
+                process2();
+                Assert.AreEqual(initialCount + 1, nativeJumpList.AppliedList.JumpItems.Count);
+            }
+        }
     }
     public class TestNativeJumpList : NativeJumpList {
         public TestNativeJumpList()
@@ -326,7 +362,7 @@ namespace DevExpress.Mvvm.UI.Tests {
         }
     }
     public class TestJumpActionsManager : IJumpActionsManager {
-        List<ApplicationJumpTaskInfo> registeredActions = new List<ApplicationJumpTaskInfo>();
+        readonly List<ApplicationJumpTaskInfo> registeredActions = new List<ApplicationJumpTaskInfo>();
         bool updating = false;
 
         public List<ApplicationJumpTaskInfo> RegisteredActions { get { return registeredActions; } }
@@ -352,4 +388,5 @@ namespace DevExpress.Mvvm.UI.Tests {
     public class TestApplicationJumpListService : ApplicationJumpListService {
         public TestApplicationJumpListService(INativeJumpList nativeJumpList, IJumpActionsManager jumpActionsManager) : base(nativeJumpList, jumpActionsManager) { }
     }
+#endif
 }

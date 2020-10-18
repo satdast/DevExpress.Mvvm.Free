@@ -8,6 +8,8 @@ using System.ComponentModel.DataAnnotations;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.ComponentModel;
+using System.Threading.Tasks;
+using DevExpress.Mvvm.POCO;
 
 namespace DevExpress.Mvvm.Tests {
     [TestFixture]
@@ -74,6 +76,13 @@ namespace DevExpress.Mvvm.Tests {
             public int MethodWithParameterCallCount;
             public int MethodWithParameterLastParameter;
             public bool MethodWithCustomCanExecuteCanExcute = false;
+
+            internal volatile bool SimpleAsyncMethodExecuting = false;
+            internal volatile bool MethodWithCanExecuteAsyncExecuting = false;
+            internal bool MethodWithCanExecuteAsyncCanExecute = false;
+            internal volatile bool MethodWithParameterAsyncMethodExecuting = false;
+            public int MethodWithParameterAsyncLastParameter;
+            internal volatile bool MultiExecuteAsyncMethodExecuting = false;
         }
         public abstract class CommandAttributeViewModelBase : CommandAttributeViewModelBaseCounters {
             [Command]
@@ -104,6 +113,32 @@ namespace DevExpress.Mvvm.Tests {
             [Command(CanExecuteMethodName = "CanMethodWithCustomCanExecute_", UseCommandManager = false)]
             public void MethodWithCustomCanExecute() { }
             public bool CanMethodWithCustomCanExecute_() { return MethodWithCustomCanExecuteCanExcute; }
+
+            [Command]
+            public async Task SimpleAsync() {
+                SimpleAsyncMethodExecuting = true;
+                await Task.Run(() => { while(SimpleAsyncMethodExecuting) ; });
+            }
+            [Command]
+            public async Task MethodWithCanExecuteAsync() {
+                MethodWithCanExecuteAsyncExecuting = true;
+                await Task.Run(() => { while(MethodWithCanExecuteAsyncExecuting) ; });
+            }
+            public bool CanMethodWithCanExecuteAsync() { return MethodWithCanExecuteAsyncCanExecute; }
+
+            [Command(UseCommandManager = false)]
+            public async Task MethodWithParameterAsync(int parameter) {
+                MethodWithParameterAsyncLastParameter = parameter;
+                await Task.Run(() => { while(MethodWithParameterAsyncMethodExecuting) ; });
+            }
+            public bool CanMethodWithParameterAsync(int parameter) { return parameter != 13; }
+
+
+            [AsyncCommand(AllowMultipleExecution = true)]
+            public async Task MultiExecuteAsync() {
+                MultiExecuteAsyncMethodExecuting = true;
+                await Task.Run(() => { while(MultiExecuteAsyncMethodExecuting) ; });
+            }
         }
         [MetadataType(typeof(CommandAttributeViewModelMetadata))]
         public class CommandAttributeViewModel_FluentAPI : CommandAttributeViewModelBaseCounters {
@@ -121,6 +156,28 @@ namespace DevExpress.Mvvm.Tests {
 
             public bool CanMethodWithCustomCanExecute_(int x) { throw new InvalidOperationException(); }
             public bool CanMethodWithCustomCanExecute_() { return MethodWithCustomCanExecuteCanExcute; }
+
+            public async Task SimpleAsync() {
+                SimpleAsyncMethodExecuting = true;
+                await Task.Run(() => { while(SimpleAsyncMethodExecuting) ; });
+            }
+
+            public async Task MethodWithCanExecuteAsync() {
+                MethodWithCanExecuteAsyncExecuting = true;
+                await Task.Run(() => { while(MethodWithCanExecuteAsyncExecuting) ; });
+            }
+            public bool CanMethodWithCanExecuteAsync() { return MethodWithCanExecuteAsyncCanExecute; }
+
+            public async Task MethodWithParameterAsync(int parameter) {
+                MethodWithParameterAsyncLastParameter = parameter;
+                await Task.Run(() => { while(MethodWithParameterAsyncMethodExecuting) ; });
+            }
+            public bool CanMethodWithParameterAsync(int parameter) { return parameter != 13; }
+
+            public async Task MultiExecuteAsync() {
+                MultiExecuteAsyncMethodExecuting = true;
+                await Task.Run(() => { while(MultiExecuteAsyncMethodExecuting) ; });
+            }
         }
         public class CommandAttributeViewModelMetadata : IMetadataProvider<CommandAttributeViewModel_FluentAPI> {
             void IMetadataProvider<CommandAttributeViewModel_FluentAPI>.BuildMetadata(MetadataBuilder<CommandAttributeViewModel_FluentAPI> builder) {
@@ -135,22 +192,29 @@ namespace DevExpress.Mvvm.Tests {
                     .DoNotUseCommandManager()
                     .CanExecuteMethod(x => x.CanMethodWithCustomCanExecute_())
                     .DoNotUseCommandManager();
+
+                builder.CommandFromMethod(x => x.SimpleAsync());
+                builder.CommandFromMethod(x => x.MethodWithCanExecuteAsync());
+                builder.CommandFromMethod(x => x.MethodWithParameterAsync(default(int)))
+                    .DoNotUseCommandManager();
+                builder.CommandFromMethod(x => x.MultiExecuteAsync())
+                    .AllowMultipleExecution();
             }
         }
         [Test]
         public void CommandAttribute_ViewModelTest() {
             var viewModel = new CommandAttributeViewModel();
-            CommandAttribute_ViewModelTestCore(viewModel, () => viewModel.MethodWithCanExecute(), () => viewModel.MethodWithCustomCanExecute());
+            CommandAttribute_ViewModelTestCore(viewModel, () => viewModel.MethodWithCanExecute(), () => viewModel.MethodWithCustomCanExecute(), () => viewModel.MethodWithCanExecuteAsync());
             viewModel = new CommandAttributeViewModel();
-            CommandAttribute_ViewModelTestCore(viewModel, () => viewModel.MethodWithCanExecute(), () => viewModel.MethodWithCustomCanExecute());
+            CommandAttribute_ViewModelTestCore(viewModel, () => viewModel.MethodWithCanExecute(), () => viewModel.MethodWithCustomCanExecute(), () => viewModel.MethodWithCanExecuteAsync());
         }
         [Test]
         public void CommandAttribute_ViewModelTest_FluentAPI() {
             var viewModel = new CommandAttributeViewModel_FluentAPI();
-            CommandAttribute_ViewModelTestCore(viewModel, () => viewModel.MethodWithCanExecute(), () => viewModel.MethodWithCustomCanExecute());
+            CommandAttribute_ViewModelTestCore(viewModel, () => viewModel.MethodWithCanExecute(), () => viewModel.MethodWithCustomCanExecute(), () => viewModel.MethodWithCanExecuteAsync());
             Assert.AreSame(((ICustomTypeDescriptor)viewModel).GetProperties(), ((ICustomTypeDescriptor)viewModel).GetProperties());
         }
-        void CommandAttribute_ViewModelTestCore(CommandAttributeViewModelBaseCounters viewModel, Expression<Action> methodWithCanExecuteExpression, Expression<Action> methodWithCustomCanExecuteExpression) {
+        void CommandAttribute_ViewModelTestCore(CommandAttributeViewModelBaseCounters viewModel, Expression<Action> methodWithCanExecuteExpression, Expression<Action> methodWithCustomCanExecuteExpression, Expression<Func<Task>> methodWithCanExecuteAsyncExpression) {
             var button = new Button() { DataContext = viewModel };
 
             button.SetBinding(Button.CommandProperty, new Binding("SimpleCommand"));
@@ -205,6 +269,57 @@ namespace DevExpress.Mvvm.Tests {
             viewModel.RaiseCanExecuteChanged(methodWithCustomCanExecuteExpression);
             Assert.IsTrue(button.IsEnabled);
 
+            button.SetBinding(Button.CommandProperty, new Binding("SimpleAsyncCommand"));
+            Assert.True(button.IsEnabled);
+            button.Command.Execute(null);
+            Assert.True(button.IsEnabled);
+            DispatcherHelper.DoEvents();
+            Assert.False(button.IsEnabled);
+            Assert.True(viewModel.SimpleAsyncMethodExecuting);
+            viewModel.SimpleAsyncMethodExecuting = false;
+            while(((IAsyncCommand)button.Command).IsExecuting)
+                DispatcherHelper.DoEvents();
+            DispatcherHelper.DoEvents();
+            Assert.True(button.IsEnabled);
+
+            button.SetBinding(Button.CommandProperty, new Binding("MethodWithCanExecuteAsyncCommand"));
+            Assert.IsFalse(button.IsEnabled);
+            viewModel.MethodWithCanExecuteAsyncCanExecute = true;
+            viewModel.RaiseCanExecuteChanged(methodWithCanExecuteAsyncExpression);
+            Assert.IsFalse(button.IsEnabled);
+            DispatcherHelper.DoEvents();
+            Assert.IsTrue(button.IsEnabled);
+            viewModel.MethodWithCanExecuteAsyncCanExecute = false;
+            viewModel.RaiseCanExecuteChanged(methodWithCanExecuteAsyncExpression);
+            Assert.IsTrue(button.IsEnabled);
+            DispatcherHelper.DoEvents();
+            Assert.IsFalse(button.IsEnabled);
+
+            button.SetBinding(Button.CommandProperty, new Binding("MethodWithParameterAsyncCommand"));
+            Assert.IsTrue(button.Command.CanExecute(9));
+            Assert.IsFalse(button.Command.CanExecute(13));
+            button.Command.Execute(9);
+            Assert.AreEqual(9, viewModel.MethodWithParameterAsyncLastParameter);
+            Assert.False(button.IsEnabled);
+            viewModel.MethodWithParameterAsyncMethodExecuting = false;
+            while(((IAsyncCommand)button.Command).IsExecuting)
+                DispatcherHelper.DoEvents();
+            Assert.True(button.IsEnabled);
+
+            button.SetBinding(Button.CommandProperty, new Binding("MultiExecuteAsyncCommand"));
+            Assert.True(button.IsEnabled);
+            button.Command.Execute(null);
+            Assert.True(button.IsEnabled);
+            DispatcherHelper.DoEvents();
+            Assert.True(button.IsEnabled);
+            Assert.True(viewModel.MultiExecuteAsyncMethodExecuting);
+            viewModel.MultiExecuteAsyncMethodExecuting = false;
+            while(((IAsyncCommand)button.Command).IsExecuting)
+                DispatcherHelper.DoEvents();
+            DispatcherHelper.DoEvents();
+            Assert.True(button.IsEnabled);
+
+            button.Command = null;
         }
         #region exceptions
 #pragma warning disable 0618
@@ -344,6 +459,76 @@ namespace DevExpress.Mvvm.Tests {
             var vm = new TestViewModel();
             AssertHelper.AssertThrows<InvalidOperationException>(() => ((ISupportParentViewModel)vm).ParentViewModel = vm,
                 e => Assert.AreEqual("ViewModel cannot be parent of itself.", e.Message));
+        }
+
+        public class T900549_VM_Base : ViewModelBase {
+            public int CountBase { get; private set; }
+            [Command]
+            public virtual void Test() { CountBase++; }
+            [Command]
+            public virtual void Test2() { CountBase++; }
+        }
+        public class T900549_VM : T900549_VM_Base {
+            public int Count { get; private set; }
+            public override void Test() {
+                base.Test();
+                Count++;
+            }
+            [Command(false)]
+            public override void Test2() {
+                base.Test2();
+            }
+        }
+
+        [MetadataType(typeof(T900549_VM_Base_FluentAPI_Metadata))]
+        public class T900549_VM_Base_FluentAPI : ViewModelBase {
+            public int CountBase { get; private set; }
+            public virtual void Test() { CountBase++; }
+            public virtual void Test2() { CountBase++; }
+        }
+        [MetadataType(typeof(T900549_VM_FluentAPI_Metadata))]
+        public class T900549_VM_FluentAPI : T900549_VM_Base_FluentAPI {
+            public int Count { get; private set; }
+            public override void Test() {
+                base.Test();
+                Count++;
+            }
+            public override void Test2() {
+                base.Test2();
+            }
+        }
+
+        public class T900549_VM_Base_FluentAPI_Metadata : IMetadataProvider<T900549_VM_Base_FluentAPI> {
+            void IMetadataProvider<T900549_VM_Base_FluentAPI>.BuildMetadata(MetadataBuilder<T900549_VM_Base_FluentAPI> builder) {
+                builder.CommandFromMethod(x => x.Test());
+                builder.CommandFromMethod(x => x.Test2());
+            }
+        }
+        public class T900549_VM_FluentAPI_Metadata : IMetadataProvider<T900549_VM_FluentAPI> {
+            void IMetadataProvider<T900549_VM_FluentAPI>.BuildMetadata(MetadataBuilder<T900549_VM_FluentAPI> builder) {
+                builder.CommandFromMethod(x => x.Test2()).DoNotCreateCommand();
+            }
+        }
+
+        [Test]
+        public void T900549() {
+            var vm = new T900549_VM();
+            var bt = new Button() { DataContext = vm };
+            bt.SetBinding(Button.CommandProperty, new Binding("TestCommand"));
+            bt.Command.Execute(null);
+            Assert.AreEqual(1, vm.Count);
+            Assert.AreEqual(1, vm.CountBase);
+            bt.SetBinding(Button.CommandProperty, new Binding("Test2Command"));
+            Assert.AreEqual(null, bt.Command);
+
+            var vm1 = new T900549_VM_FluentAPI();
+            var bt1 = new Button() { DataContext = vm1 };
+            bt1.SetBinding(Button.CommandProperty, new Binding("TestCommand"));
+            bt1.Command.Execute(null);
+            Assert.AreEqual(1, vm1.Count);
+            Assert.AreEqual(1, vm1.CountBase);
+            bt1.SetBinding(Button.CommandProperty, new Binding("Test2Command"));
+            Assert.AreEqual(null, bt1.Command);
         }
     }
     public class TestViewModel : ViewModelBase {

@@ -19,6 +19,9 @@ namespace DevExpress.Mvvm.ModuleInjection {
         VisualSerializationMode VisualSerializationMode { get; set; }
         void SetLogicalSerializationMode(string key, LogicalSerializationMode? mode);
         void SetVisualSerializationMode(string key, VisualSerializationMode? mode);
+        LogicalSerializationMode GetLogicalSerializationMode(string key);
+        VisualSerializationMode GetVisualSerializationMode(string key);
+        void ResetVisualState();
     }
 }
 namespace DevExpress.Mvvm.ModuleInjection.Native {
@@ -47,6 +50,7 @@ namespace DevExpress.Mvvm.ModuleInjection.Native {
         void Remove(object viewModel);
         void Clear();
 
+        void SelectViewModel(object vm, bool focus);
         object GetView(object viewModel);
     }
     public interface IUIWindowRegion : IUIRegion {
@@ -146,7 +150,7 @@ namespace DevExpress.Mvvm.ModuleInjection.Native {
         }
 
         public void Inject(IModule module, object parameter) {
-            var item = new RegionItem(owner.ViewModelLocator, owner.ViewLocator, owner.ViewModelStateSerializer, module, parameter);
+            var item = new RegionItem(owner, module, parameter, LogicalState.Items.FirstOrDefault(x => x.Key == module.Key));
             items.Add(item);
             DoForeachUIRegion(x => item.Inject(x, OnViewModelCreated));
             TryNavigate();
@@ -155,15 +159,20 @@ namespace DevExpress.Mvvm.ModuleInjection.Native {
             if(key == null) return;
             var item = GetItem(key);
             if(item == null) return;
-            if(item.ViewModel != null)
+            if (item.ViewModel != null) {
+                SaveLogicalState(item);
                 DoForeachUIRegion(x => x.Remove(item.ViewModel));
+            }
             items.Remove(item);
+            item.RemoveViewModel();
         }
         public bool Contains(string key) {
             return GetItem(key) != null;
         }
         public void Clear() {
+            SaveLogicalState();
             DoForeachUIRegion(x => x.Clear());
+            items.ForEach(x => x.RemoveViewModel());
             items.Clear();
             navigationKey = null;
             SelectedKey = null;
@@ -176,7 +185,7 @@ namespace DevExpress.Mvvm.ModuleInjection.Native {
             SelectedKey = key;
             DoForeachUIRegion(x => x.SelectedViewModel = vm);
         }
-        bool TryNavigate() {
+        bool TryNavigate(bool focus = true) {
             if(navigationKey == null || !GetUIRegions().Any()) return false;
             if(navigationKey == navigationKeyNull) {
                 DoForeachUIRegion(x => x.SelectedViewModel = null);
@@ -185,7 +194,7 @@ namespace DevExpress.Mvvm.ModuleInjection.Native {
             }
             var item = GetItem(navigationKey);
             if(item == null || item.ViewModel == null) return false;
-            DoForeachUIRegion(x => x.SelectedViewModel = item.ViewModel);
+            DoForeachUIRegion(x => x.SelectViewModel(item.ViewModel, focus));
             navigationKey = null;
             return true;
         }
@@ -222,8 +231,16 @@ namespace DevExpress.Mvvm.ModuleInjection.Native {
                 visualState = value;
             }
         }
+        RegionInfo logicalState;
+        RegionInfo LogicalState {
+            get { return logicalState ?? (logicalState = new RegionInfo() { RegionName = RegionName }); }
+            set {
+                if (value == null) value = new RegionInfo() { RegionName = RegionName };
+                if (value.RegionName != RegionName) return;
+                logicalState = value;
+            }
+        }
         string restoreSelectedKey;
-        readonly List<string> disabledSerialization = new List<string>();
         readonly Dictionary<string, LogicalSerializationMode> customLogicalSerializationMode = new Dictionary<string, LogicalSerializationMode>();
         readonly Dictionary<string, VisualSerializationMode> customVisualSerializationMode = new Dictionary<string, VisualSerializationMode>();
 
@@ -233,10 +250,10 @@ namespace DevExpress.Mvvm.ModuleInjection.Native {
         public void SetVisualSerializationMode(string key, VisualSerializationMode? mode) {
             SetCustomSerializationMode(customVisualSerializationMode, key, mode);
         }
-        LogicalSerializationMode GetLogicalSerializationMode(string key) {
+        public LogicalSerializationMode GetLogicalSerializationMode(string key) {
             return GetSerializationMode(customLogicalSerializationMode, key, LogicalSerializationMode);
         }
-        VisualSerializationMode GetVisualSerializationMode(string key) {
+        public VisualSerializationMode GetVisualSerializationMode(string key) {
             return GetSerializationMode(customVisualSerializationMode, key, VisualSerializationMode);
         }
         void SetCustomSerializationMode<T>(Dictionary<string, T> storage, string key, T? mode) where T : struct {
@@ -256,26 +273,21 @@ namespace DevExpress.Mvvm.ModuleInjection.Native {
         }
 
         public void GetInfo(out RegionInfo logicalInfo, out RegionVisualInfo visualInfo) {
-            logicalInfo = new RegionInfo() { RegionName = RegionName };
-            if(LogicalSerializationMode == LogicalSerializationMode.Enabled)
-                logicalInfo.SelectedViewModelKey = SelectedKey;
-            foreach(var item in items) {
-                if(GetLogicalSerializationMode(item.Key) == LogicalSerializationMode.Disabled) continue;
-                var itemInfo = item.GetLogicalInfo();
-                if(itemInfo != null) logicalInfo.Items.Add(itemInfo);
-            }
-
+            SaveLogicalState();
             UpdateVisualState();
             visualInfo = VisualState;
+            logicalInfo = LogicalState;
         }
         public void SetInfo(RegionInfo logicalInfo, RegionVisualInfo visualInfo) {
             VisualState = visualInfo;
-            if(logicalInfo == null) return;
-            foreach(var itemInfo in logicalInfo.Items) {
+            LogicalState = logicalInfo;
+            foreach(var itemInfo in LogicalState.Items) {
                 if(GetLogicalSerializationMode(itemInfo.Key) == LogicalSerializationMode.Disabled) continue;
-                items.Add(new RegionItem(owner.ViewModelLocator, owner.ViewLocator, owner.ViewModelStateSerializer, itemInfo));
+                if (!itemInfo.IsInjected) continue;
+                items.Add(new RegionItem(owner, itemInfo));
             }
-            restoreSelectedKey = logicalInfo.SelectedViewModelKey;
+            if (LogicalSerializationMode == LogicalSerializationMode.Enabled)
+                restoreSelectedKey = logicalInfo.SelectedViewModelKey;
         }
         public void ApplyInfo(bool inject, bool navigate) {
             if(items.Count == 0) return;
@@ -283,10 +295,14 @@ namespace DevExpress.Mvvm.ModuleInjection.Native {
                 foreach(var item in items)
                     DoForeachUIRegion(x => item.Inject(x, OnViewModelCreated));
             }
-            if(navigate) {
-                Navigate(restoreSelectedKey);
+            if(navigate && LogicalSerializationMode == LogicalSerializationMode.Enabled) {
+                navigationKey = restoreSelectedKey == null ? navigationKeyNull : restoreSelectedKey;
+                TryNavigate(false);
                 restoreSelectedKey = null;
             }
+        }
+        public void ResetVisualState() {
+            VisualState = null;
         }
 
         public void SaveVisualState(object viewModel, string viewPart, string state) {
@@ -326,30 +342,85 @@ namespace DevExpress.Mvvm.ModuleInjection.Native {
             ViewModels.SelectMany(x => VisualStateServiceHelper.GetServices(x, false, true))
                 .ToList().ForEach(x => x.EnforceSaveState());
         }
+
+        void SaveLogicalState() {
+            if (LogicalSerializationMode == LogicalSerializationMode.Enabled)
+                LogicalState.SelectedViewModelKey = SelectedKey;
+
+            Dictionary<string, int> order = new Dictionary<string, int>();
+            int index = 0;
+            foreach (var item in items) {
+                order.Add(item.Key, index++);
+                SaveLogicalState(item);
+            }
+            foreach(var itemInfo in LogicalState.Items) {
+                if (!items.Any(x => x.Key == itemInfo.Key)) {
+                    itemInfo.IsInjected = false;
+                    order.Add(itemInfo.Key, int.MaxValue);
+                }
+            }
+            LogicalState.Items.Sort((x, y) => order[x.Key] - order[y.Key]);
+        }
+        void SaveLogicalState(RegionItem item) {
+            if (item == null) return;
+            var info = LogicalState.Items.FirstOrDefault(x => x.Key == item.Key);
+            if (GetLogicalSerializationMode(item.Key) == LogicalSerializationMode.Disabled) {
+                if(info != null) LogicalState.Items.Remove(info);
+                return;
+            }
+            bool isInjected = items.Contains(item);
+
+            var actualInfo = item.GetLogicalInfo();
+            if(actualInfo == null) {
+                if(info != null) info.IsInjected = false;
+                return;
+            }
+            if(info == null) {
+                LogicalState.Items.Add(actualInfo);
+                actualInfo.IsInjected = isInjected;
+                return;
+            }
+            info.IsInjected = isInjected;
+            info.ViewModelName = actualInfo.ViewModelName;
+            info.ViewModelState = actualInfo.ViewModelState;
+            info.ViewModelStateType = actualInfo.ViewModelStateType;
+            info.ViewName = actualInfo.ViewName;
+        }
         #endregion
         #region RegionItem
         class RegionItem {
             public string Key { get; private set; }
-            public object ViewModel { get { return viewModelRef != null ? viewModelRef.Target : null; } }
+            public object ViewModel { get { return viewModel ?? viewModelRef?.Target; } }
             Func<object> Factory { get; set; }
             string ViewModelName { get; set; }
             string ViewName { get; set; }
             Type ViewType { get; set; }
-            object ViewModelState { get; set; }
+            string ViewModelState { get; set; }
             object Parameter { get; set; }
 
             WeakReference viewModelRef;
+            object viewModel;
+            readonly bool keepViewModelAlive;
             readonly IViewModelLocator viewModelLocator;
             readonly IViewLocator viewLocator;
             readonly IStateSerializer stateSerializer;
-            public RegionItem(IViewModelLocator viewModelLocator, IViewLocator viewLocator, IStateSerializer stateSerializer, IModule module, object parameter)
-                : this(viewModelLocator, viewLocator, stateSerializer, module.Key, module.ViewModelFactory, module.ViewModelName, module.ViewName, module.ViewType, parameter) { }
-            public RegionItem(IViewModelLocator viewModelLocator, IViewLocator viewLocator, IStateSerializer stateSerializer, RegionItemInfo info)
-                : this(viewModelLocator, viewLocator, stateSerializer, info.Key, null, info.ViewModelName, info.ViewName, null, null) {
-                SetViewModelState(info.ViewModelState.With(x => x.State), info.ViewModelStateType);
+
+            public RegionItem(IModuleManagerImplementation manager, IModule module, object parameter, RegionItemInfo info)
+                : this(manager.ViewModelLocator, manager.ViewLocator, manager.ViewModelStateSerializer,
+                      module.Key, module.ViewModelFactory, module.ViewModelName, module.ViewName, module.ViewType, parameter, manager.KeepViewModelsAlive)  {
+                if(info != null) {
+                    SetViewModelState(info.ViewModelState.With(x => x.State));
+                }
+            }
+            public RegionItem(IModuleManagerImplementation manager, RegionItemInfo info)
+                : this(manager.ViewModelLocator, manager.ViewLocator, manager.ViewModelStateSerializer,
+                      info.Key, null, info.ViewModelName, info.ViewName, null, null, manager.KeepViewModelsAlive) {
+                SetViewModelState(info.ViewModelState.With(x => x.State));
             }
             RegionItem(IViewModelLocator viewModelLocator, IViewLocator viewLocator, IStateSerializer stateSerializer,
-                string key, Func<object> factory, string viewModelName, string viewName, Type viewType, object parameter) {
+                string key, Func<object> factory, string viewModelName, string viewName, Type viewType, object parameter,
+                bool keepViewModelAlive) {
+                this.keepViewModelAlive = keepViewModelAlive;
                 this.viewModelLocator = viewModelLocator;
                 this.viewLocator = viewLocator;
                 this.stateSerializer = stateSerializer;
@@ -369,30 +440,32 @@ namespace DevExpress.Mvvm.ModuleInjection.Native {
                 RegionItemInfo res = new RegionItemInfo() {
                     Key = Key, ViewModelName = ViewModelName, ViewName = ViewName,
                 };
-                string state, stateType;
-                GetViewModelState(out state, out stateType);
-                res.ViewModelStateType = stateType;
+                string state;
+                GetViewModelState(out state);
+                res.ViewModelStateType = null;
                 res.ViewModelState = new SerializableState(state);
                 return res;
             }
-            void GetViewModelState(out string state, out string stateType) {
+            void GetViewModelState(out string state) {
                 state = null;
-                stateType = null;
                 if(ViewModel == null) return;
+                var vmStateType = ISupportStateHelper.GetStateType(ViewModel.GetType());
+                if(vmStateType == null) return;
                 object vmState = ISupportStateHelper.GetState(ViewModel);
                 if(vmState == null) return;
-                state = stateSerializer.SerializeState(vmState, vmState.GetType());
-                stateType = vmState.GetType().AssemblyQualifiedName;
+                state = stateSerializer.SerializeState(vmState, vmStateType);
             }
-            void SetViewModelState(string state, string stateType) {
-                if(string.IsNullOrEmpty(state) || string.IsNullOrEmpty(stateType)) return;
-                object vmState = stateSerializer.DeserializeState(state, Type.GetType(stateType));
-                ViewModelState = vmState;
+            void SetViewModelState(string state) {
+                ViewModelState = state;
                 UpdateViewModelState();
             }
             void UpdateViewModelState() {
-                if(ViewModelState == null || ViewModel == null) return;
-                ISupportStateHelper.RestoreState(ViewModel, ViewModelState);
+                if(ViewModel == null) return;
+                if(string.IsNullOrEmpty(ViewModelState)) return;
+                var vmStateType = ISupportStateHelper.GetStateType(ViewModel.GetType());
+                if(vmStateType == null) return;
+                var state = stateSerializer.DeserializeState(ViewModelState, vmStateType);
+                ISupportStateHelper.RestoreState(ViewModel, state);
             }
 
             public string GetViewName() {
@@ -407,13 +480,22 @@ namespace DevExpress.Mvvm.ModuleInjection.Native {
                 }
                 service.Inject(ViewModel, ViewType);
             }
+            public void RemoveViewModel() {
+                viewModel = null;
+            }
             void Init() {
                 object vm = null;
-                if(Factory != null) vm = Factory();
-                else if(ViewModelName != null) vm = viewModelLocator.ResolveViewModel(ViewModelName);
+                if (Factory != null) vm = Factory();
+                else if (ViewModelName != null) {
+                    vm = viewModelLocator.ResolveViewModel(ViewModelName);
+                    if (vm == null)
+                        ModuleInjectionException.CannotResolveVM(ViewModelName);
+                }
                 if(vm == null)
                     ModuleInjectionException.NullVM();
-                viewModelRef = new WeakReference(vm);
+                if(keepViewModelAlive)
+                    viewModel = vm;
+                else viewModelRef = new WeakReference(vm);
                 InitParameter();
                 if(string.IsNullOrEmpty(ViewModelName))
                     ViewModelName = viewModelLocator.GetViewModelTypeName(vm.GetType());
@@ -480,6 +562,10 @@ namespace DevExpress.Mvvm.ModuleInjection.Native {
             }
             void IUIRegion.Clear() {
                 viewModels.Clear();
+            }
+
+            void IUIRegion.SelectViewModel(object vm, bool focus) {
+                ((IUIRegion)this).SelectedViewModel = vm;
             }
             object IUIRegion.GetView(object viewModel) {
                 return null;

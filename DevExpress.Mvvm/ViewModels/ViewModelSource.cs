@@ -37,6 +37,15 @@ namespace DevExpress.Mvvm.POCO {
     }
 
     public class ViewModelSource {
+#if DEBUG
+        static Action<Type> checkTypeInTests;
+        public static void SetCheckTypeInTestsDelegate(Action<Type> check) {
+            if (checkTypeInTests != null)
+                throw new InvalidOperationException();
+            checkTypeInTests = check;
+        }
+#endif
+
         [ThreadStatic]
         static Dictionary<Type, ICustomAttributeBuilderProvider> attributeBuilderProviders;
         static Dictionary<Type, ICustomAttributeBuilderProvider> AttributeBuilderProviders {
@@ -261,7 +270,11 @@ namespace DevExpress.Mvvm.POCO {
         }
 
         private static bool CheckType(Type type, bool @throw) {
-            if(!type.IsPublic && !type.IsNestedPublic)
+#if DEBUG
+            if (checkTypeInTests != null)
+                checkTypeInTests(type);
+#endif
+            if (!type.IsPublic && !type.IsNestedPublic)
                 return ViewModelSourceException.ReturnFalseOrThrow(@throw, ViewModelSourceException.Error_InternalClass, type);
             if(type.IsSealed)
                 return ViewModelSourceException.ReturnFalseOrThrow(@throw, ViewModelSourceException.Error_SealedClass, type);
@@ -476,7 +489,10 @@ namespace DevExpress.Mvvm.POCO {
             if(attribute != null && !attribute.IsServiceProperty)
                 return false;
 
-            if(!property.PropertyType.Name.EndsWith("Service") && attribute == null)
+            string propertyTypeName = property.PropertyType.Name;
+            if (propertyTypeName.Contains('`'))
+                propertyTypeName = propertyTypeName.Substring(0, propertyTypeName.IndexOf('`'));
+            if (!propertyTypeName.EndsWith("Service") && attribute == null)
                 return false;
 
             if(!property.PropertyType.IsInterface)
@@ -518,7 +534,7 @@ namespace DevExpress.Mvvm.POCO {
                 gen.Emit(OpCodes.Ldnull);
             else gen.Emit(OpCodes.Ldstr, serviceName);
             gen.Emit(OpCodes.Ldc_I4_S, (int)searchMode);
-            gen.Emit(OpCodes.Call, getServiceMethod);
+            gen.Emit(required ? OpCodes.Call : OpCodes.Callvirt, getServiceMethod);
             gen.Emit(OpCodes.Ret);
             return method;
         }
@@ -605,7 +621,7 @@ namespace DevExpress.Mvvm.POCO {
             foreach(var propertyInfo in bindableProps) {
                 var newProperty = BuilderBindableProperty.BuildBindableProperty(type, typeBuilder,
                     propertyInfo, raisePropertyChangedMethod, raisePropertyChangingMethod,
-                    propertyRelations.GetValueOrDefault(propertyInfo.Name, null));
+                    DictionaryExtensions.GetValueOrDefault(propertyRelations, propertyInfo.Name, null));
                 BuildBindablePropertyAttributes(propertyInfo, newProperty);
             }
         }
@@ -742,8 +758,8 @@ namespace DevExpress.Mvvm.POCO {
         static ModuleBuilder CreateBuilder() {
             var assemblyName = new AssemblyName();
             assemblyName.Name = AssemblyInfo.SRAssemblyXpfMvvm + ".DynamicTypes." + Guid.NewGuid().ToString();
-            var assemblyBuilder = AppDomain.CurrentDomain.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
-            return assemblyBuilder.DefineDynamicModule(assemblyName.Name, false);
+            var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+            return assemblyBuilder.DefineDynamicModule(assemblyName.Name);
         }
         static bool ShouldImplementINotifyPropertyChanging(Type type) {
             if(type.GetInterfaces().Contains(typeof(INotifyPropertyChanging)))
@@ -1084,7 +1100,7 @@ namespace DevExpress.Mvvm.POCO {
         internal const string Error_TypeHasNoCtors = "Type has no accessible constructors: {0}.";
 
         internal const string Error_SealedClass = "Cannot create dynamic class for the sealed class: {0}.";
-        internal const string Error_InternalClass = "Cannot create dynamic class for the internal class: {0}.";
+        internal const string Error_InternalClass = "Cannot create a dynamic class for the non-public class: {0}.";
         internal const string Error_TypeImplementsIPOCOViewModel = "Type cannot implement IPOCOViewModel: {0}.";
 
         internal const string Error_RaisePropertyChangedMethodNotFound = "Class already supports INotifyPropertyChanged, but RaisePropertyChanged(string) method not found: {0}.";
@@ -1163,6 +1179,10 @@ namespace DevExpress.Mvvm.POCO {
         public static void RaiseCanExecuteChanged<T>(this T viewModel, Expression<Action<T>> methodExpression) {
             RaiseCanExecuteChangedCore(viewModel, methodExpression);
         }
+        public static void RaiseCanExecuteChanged<T>(this T viewModel, Expression<Func<T, Task>> methodExpression) {
+            RaiseCanExecuteChangedCore(viewModel, methodExpression);
+        }
+
         public static bool HasError<T, TProperty>(this T viewModel, Expression<Func<T, TProperty>> propertyExpression) {
             IDataErrorInfo dataErrorInfoViewModel = viewModel as IDataErrorInfo;
             return (dataErrorInfoViewModel != null) && !string.IsNullOrEmpty(dataErrorInfoViewModel[BindableBase.GetPropertyNameFast(propertyExpression)]);

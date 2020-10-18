@@ -44,12 +44,12 @@ namespace DevExpress.Mvvm.Native {
             return string.Format(CultureInfo.CurrentCulture, error, name, this.Length);
         }
         protected override bool IsValid(object value) {
-            if(Length == 0 || Length < -1)
+            if(Length == 0 || Length < MaxAllowableLength)
                 throw new InvalidOperationException(string.Format(CultureInfo.CurrentCulture, DataAnnotationsResourcesResolver.MaxLengthAttribute_InvalidMaxLength));
             if(value != null) {
                 string stringValue = value as string;
                 int valueLength = stringValue != null ? stringValue.Length : ((Array)value).Length;
-                if(Length != -1)
+                if(Length != MaxAllowableLength)
                     return valueLength <= Length;
             }
             return true;
@@ -175,24 +175,39 @@ namespace DevExpress.Mvvm.Native {
     }
     [AttributeUsageAttribute(AttributeTargets.All, Inherited = true, AllowMultiple = true)]
     internal class CustomValidationAttribute : DXValidationAttribute {
-        protected readonly Func<object, bool> isValidFunction;
-        public CustomValidationAttribute(Func<object, bool> isValidFunction, Func<object, string> errorMessageAccessor)
+        readonly Func<object, bool> isValidFunction;
+        readonly Type valueType;
+        public CustomValidationAttribute(Type valueType, Func<object, bool> isValidFunction, Func<object, string> errorMessageAccessor)
             : base(errorMessageAccessor, () => DataAnnotationsResourcesResolver.CustomValidationAttribute_ValidationError) {
+            this.valueType = valueType;
             this.isValidFunction = isValidFunction;
         }
         protected override bool IsValid(object value) {
+            if (IsValueTypeAndNull(valueType, value))
+                return true;
             return isValidFunction(value);
+        }
+        internal static bool IsValueTypeAndNull(Type valueType, object value) {
+            bool isValueType = valueType.IsValueType;
+            bool isNullable = isValueType
+                && valueType.IsGenericType
+                && valueType.GetGenericTypeDefinition() == typeof(Nullable<>);
+            return isValueType && !isNullable && value == null;
         }
     }
     [AttributeUsageAttribute(AttributeTargets.All, Inherited = true, AllowMultiple = true)]
     internal class CustomInstanceValidationAttribute : DXValidationAttribute {
         readonly Func<object, object, bool> isValidFunction;
-        public CustomInstanceValidationAttribute(Func<object, object, bool> isValidFunction, ErrorMessageAccessorDelegate errorMessageAccessor)
+        readonly Type valueType;
+        public CustomInstanceValidationAttribute(Type valueType, Func<object, object, bool> isValidFunction, ErrorMessageAccessorDelegate errorMessageAccessor)
             : base(errorMessageAccessor, () => DataAnnotationsResourcesResolver.CustomValidationAttribute_ValidationError) {
+            this.valueType = valueType;
             this.isValidFunction = isValidFunction;
         }
         protected override bool IsValid(object value) { return true; }
         protected override bool IsInstanceValid(object value, object instance) {
+            if (CustomValidationAttribute.IsValueTypeAndNull(valueType, value))
+                return true;
             return isValidFunction(value, instance);
         }
     }

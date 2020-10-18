@@ -7,20 +7,23 @@ using System.Windows;
 using System.Windows.Controls;
 
 namespace DevExpress.Xpf.DXBinding.Tests {
+    [Platform("NET")]
     [TestFixture]
     public class EventTests {
         [SetUp]
-        public void Init() {
+        public virtual void Init() {
             BindingListener.Enable();
             BindingTestHelper.TestsSetUp();
+            BindingTestHelper.SetResolvingMode(DXBindingResolvingMode.LegacyStaticTyping);
         }
         [TearDown]
-        public void TearDown() {
+        public virtual void TearDown() {
             BindingTestHelper.TestsTearDown();
             BindingListener.Disable();
+            BindingTestHelper.ClearResolvingMode();
         }
         [Test]
-        public void OneMethod() {
+        public virtual void OneMethod() {
             var vm = EventTests_a.Create();
             var bt = BindingTestHelper.BindAssert<EventTests_visual>("test:EventTests_visual", "CustomRoutedEvent", "{b:DXEvent Do1()}", null, vm);
             Assert.AreEqual(0, vm.Do1Counter);
@@ -32,7 +35,7 @@ namespace DevExpress.Xpf.DXBinding.Tests {
             Assert.AreEqual(2, vm.Do1Counter);
         }
         [Test]
-        public void TwoMethods() {
+        public virtual void TwoMethods() {
             var vm = EventTests_a.Create();
             var bt = BindingTestHelper.BindAssert<EventTests_visual>("test:EventTests_visual", "CustomEvent", "{b:DXEvent 'Do1(); Do2()'}", null, vm);
             bt.RaiseCustomEvent();
@@ -40,7 +43,7 @@ namespace DevExpress.Xpf.DXBinding.Tests {
             Assert.AreEqual(1, vm.Do2Counter);
         }
         [Test]
-        public void Parameters() {
+        public virtual void Parameters() {
             string xaml = @"
 <Grid x:Name=""root"">
     <Grid.Resources>
@@ -69,7 +72,7 @@ namespace DevExpress.Xpf.DXBinding.Tests {
             Assert.AreEqual(bt2, vm.Do3Sender);
         }
         [Test]
-        public void EventInDataTemplate() {
+        public virtual void EventInDataTemplate() {
             string xaml = @"
 <Grid>
     <Grid.Resources>
@@ -95,7 +98,7 @@ namespace DevExpress.Xpf.DXBinding.Tests {
             });
         }
         [Test]
-        public void StaticMethod() {
+        public virtual void StaticMethod() {
             EventTests_a.DoValue = 0;
             var bt = BindingTestHelper.BindAssert<EventTests_visual>("test:EventTests_visual", "CustomEvent", "{b:DXEvent '$test:EventTests_a.DoStatic()'}", null, null);
             bt.RaiseCustomEvent();
@@ -106,7 +109,80 @@ namespace DevExpress.Xpf.DXBinding.Tests {
             bt.RaiseCustomEvent();
             Assert.AreEqual(1, EventTests_a.DoValue);
         }
+        [Test]
+        public virtual void NoDataContextTest_T543513() {
+            var bt = BindingTestHelper.BindAssert<EventTests_visual>("test:EventTests_visual", "CustomEvent", "{b:DXEvent Do1()}", null, null);
+            bt.RaiseCustomEvent();
+
+            bt = BindingTestHelper.BindAssert<EventTests_visual>("test:EventTests_visual", "CustomEvent", "{b:DXEvent 'Do1(@sender, @args)'}", null, null);
+            bt.RaiseCustomEvent();
+        }
     }
+
+    [Platform("NET")]
+    [TestFixture]
+    public class EventTests_Dynamic : EventTests {
+        [SetUp]
+        public override void Init() {
+            base.Init();
+            BindingTestHelper.SetResolvingMode(DXBindingResolvingMode.DynamicTyping);
+        }
+        [TearDown]
+        public override void TearDown() {
+            base.TearDown();
+            BindingTestHelper.ClearResolvingMode();
+        }
+        [Test]
+        public void NewOperator() {
+            var vm = EventTests_a.Create();
+            var bt = BindingTestHelper.BindAssert<EventTests_visual>(
+                "test:EventTests_visual",
+                "CustomRoutedEvent",
+                "{b:DXEvent Do5(new $Thickness(@s.Margin.Left))}", null, vm);
+            bt.RaiseCustomRoutedEvent();
+            Assert.AreEqual(new Thickness(), vm.Do5V);
+            bt.Margin = new Thickness(1);
+            bt.RaiseCustomRoutedEvent();
+            Assert.AreEqual(new Thickness(1), vm.Do5V);
+        }
+        [Test]
+        public void AssignOperator_ElementName() {
+            string xaml = @"
+<Grid x:Name=""panel"" Tag=""{b:DXBinding '1'}"">
+    <test:EventTests_visual CustomRoutedEvent=""{b:DXEvent Handler='@e(panel).Tag = @e(panel).Tag + 1'}""/>
+</Grid>
+";
+            var panel = BindingTestHelper.LoadXaml<Grid>(xaml);
+            var visual = (EventTests_visual)panel.Children[0];
+            Assert.AreEqual(1, panel.Tag);
+            visual.RaiseCustomRoutedEvent();
+            Assert.AreEqual(2, panel.Tag);
+        }
+
+        [Test]
+        public void T709285() {
+            var vm = new T709285_VM();
+            ((T709285_VM_Base)vm).Prop = "1";
+            var bt = BindingTestHelper.BindAssert<EventTests_visual>(
+                "test:EventTests_visual",
+                "CustomRoutedEvent",
+                "{b:DXEvent Do(Prop)}", null, vm);
+            Assert.AreEqual(null, vm.ResProp);
+            bt.RaiseCustomRoutedEvent();
+            Assert.AreEqual("1", vm.ResProp);
+        }
+        public class T709285_VM_Base {
+            public object Prop { get; set; }
+        }
+        public class T709285_VM : T709285_VM_Base {
+            public new string Prop { get { return (string)base.Prop; } }
+            public string ResProp { get; private set; }
+            public void Do(string prop) {
+                ResProp = prop;
+            }
+        }
+    }
+
     public class EventTests_visual : Button {
         public static readonly RoutedEvent CustomRoutedEventProperty = EventManager.RegisterRoutedEvent("CustomRoutedEvent", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(EventTests_visual));
         public event RoutedEventHandler CustomRoutedEvent { add { AddHandler(CustomRoutedEventProperty, value); } remove { RemoveHandler(CustomRoutedEventProperty, value); } }
@@ -145,6 +221,11 @@ namespace DevExpress.Xpf.DXBinding.Tests {
         public int Do4(int v) {
             Do4Counter++;
             return v;
+        }
+
+        public Thickness Do5V { get; set; }
+        public void Do5(Thickness thickness) {
+            Do5V = thickness;
         }
     }
 }

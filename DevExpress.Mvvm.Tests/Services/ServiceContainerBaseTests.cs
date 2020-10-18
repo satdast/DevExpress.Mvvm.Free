@@ -8,6 +8,7 @@ using System.Windows;
 using System.Linq;
 using NUnit.Framework;
 using System.Collections.Generic;
+using DevExpress.Mvvm.Native;
 
 namespace DevExpress.Mvvm.Tests {
     [TestFixture]
@@ -375,6 +376,14 @@ namespace DevExpress.Mvvm.Tests {
             Assert.AreEqual(service11, child.ServiceContainer.GetService<IService1>("testService11"));
         }
         [Test]
+        public void T711283() {
+            var defaultServiceContainer = new DefaultServiceContainer2();
+            defaultServiceContainer.Resources.Add("testService", null);
+            ServiceContainer.Default = defaultServiceContainer;
+            var vm = new TestSupportServices();
+            vm.GetService<IMessageBoxService>();
+        }
+        [Test]
         public void GetLastParent() {
             var root = new TestSupportServices();
             var parent = new TestSupportServices();
@@ -500,6 +509,21 @@ namespace DevExpress.Mvvm.Tests {
             Assert.AreEqual(null, vm1.GetService<ITestService>());
         }
         [Test]
+        public void UnregisterServiceOnUnloaded() {
+            Button control = new Button();
+            TestVM vm1 = TestVM.Create();
+            TestServiceBase service = new TestServiceBase() { UnregisterOnUnloaded = true };
+            Interaction.GetBehaviors(control).Add(service);
+            control.DataContext = vm1;
+            Assert.AreEqual(service, vm1.GetService<ITestService>());
+            Window.Content = control;
+            Window.Show();
+            Assert.AreEqual(service, vm1.GetService<ITestService>());
+            Window.Content = null;
+            DispatcherHelper.DoEvents();
+            Assert.AreEqual(null, vm1.GetService<ITestService>());
+        }
+        [Test]
         public void T250427() {
             Grid mainV = new Grid();
             TestVM mainVM = TestVM.Create();
@@ -527,6 +551,7 @@ namespace DevExpress.Mvvm.Tests {
         public class TestServiceBase : ServiceBase, ITestService { }
     }
 
+#if !DXCORE3
     [TestFixture]
     public class ServiceContainerThreadTest :BaseWpfFixture {
         const int iterationCount = 1000;
@@ -586,4 +611,5 @@ namespace DevExpress.Mvvm.Tests {
             }
         }
     }
+#endif
 }

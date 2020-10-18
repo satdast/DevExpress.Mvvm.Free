@@ -3,6 +3,7 @@ using System.Collections;
 using System.Windows;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
@@ -80,18 +81,20 @@ namespace DevExpress.Mvvm.UI.Native {
                 if(elementWindow.WindowStyle == WindowStyle.None)
                     return GetScreenRectCore(elementWindow, elementWindow);
                 else {
-                    if(elementWindow.WindowState == WindowState.Maximized) {
+                    if (elementWindow.WindowState == WindowState.Maximized) {
                         var screen = System.Windows.Forms.Screen.FromHandle(new System.Windows.Interop.WindowInteropHelper(elementWindow).Handle);
                         var workingArea = screen.WorkingArea;
                         var leftTop = new Point(workingArea.Location.X, workingArea.Location.Y);
                         var size = new Size(workingArea.Size.Width, workingArea.Size.Height);
                         var presentationSource = PresentationSource.FromVisual(elementWindow);
-                        if(presentationSource != null) {
+                        if (presentationSource != null) {
                             leftTop = new Point(leftTop.X / presentationSource.CompositionTarget.TransformToDevice.M11, leftTop.Y / presentationSource.CompositionTarget.TransformToDevice.M22);
                             size = new Size(size.Width / presentationSource.CompositionTarget.TransformToDevice.M11, size.Height / presentationSource.CompositionTarget.TransformToDevice.M22);
                         }
                         return new Rect(leftTop, size);
-                    } else return new Rect(new Point(elementWindow.Left, elementWindow.Top), new Size(elementWindow.Width, elementWindow.Height));
+                    } else {
+                        return new Rect(new Point(elementWindow.Left, elementWindow.Top), new Size(elementWindow.Width, elementWindow.Height));
+                    }
                 }
             }
             if(element == null) {
@@ -119,6 +122,7 @@ namespace DevExpress.Mvvm.UI.Native {
             }
             return new Rect(leftTop, rightBottom);
         }
+
 
         static DependencyObject GetParentCore(DependencyObject d, bool useLogicalTree = false) {
             DependencyObject parent = LogicalTreeHelper.GetParent(d);
@@ -202,11 +206,11 @@ namespace DevExpress.Mvvm.UI.Native {
         public static FrameworkElement FindElementByName(FrameworkElement treeRoot, string name) {
             return FindElement(treeRoot, element => element.Name == name);
         }
-        public static FrameworkElement FindElementByType(FrameworkElement treeRoot, Type type) {
-            return FindElement(treeRoot, element => element.GetType() == type);
+        public static FrameworkElement FindElementByType(FrameworkElement treeRoot, Type type, Func<FrameworkElement, bool> handler = null) {
+            return FindElement(treeRoot, element => element.GetType() == type && (handler?.Invoke(element) ?? true));
         }
-        public static T FindElementByType<T>(FrameworkElement treeRoot) where T : FrameworkElement {
-            return (T)FindElementByType(treeRoot, typeof(T));
+        public static T FindElementByType<T>(FrameworkElement treeRoot, Func<FrameworkElement, bool> handler = null) where T : FrameworkElement {
+            return (T)FindElementByType(treeRoot, typeof(T), handler);
         }
 
         public static bool IsChildElement(DependencyObject root, DependencyObject element) {

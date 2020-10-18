@@ -5,24 +5,30 @@ using System.IO;
 using DevExpress.Mvvm.Native;
 
 namespace DevExpress.Mvvm {
-    public interface IOpenFileDialogService {
-        string Filter { get; set; }
-        int FilterIndex { get; set; }
+    public interface IOpenDialogServiceBase : IFileDialogServiceBase {
+        bool Multiselect { get; set; }
+
         bool ShowDialog(Action<CancelEventArgs> fileOK, string directoryName);
+    }
+
+    public interface IOpenFolderDialogService : IOpenDialogServiceBase {
+        IFolderInfo Folder { get; }
+        IEnumerable<IFolderInfo> Folders { get; }
+    }
+    public interface IOpenFileDialogService : IOpenDialogServiceBase {
         IFileInfo File { get; }
         IEnumerable<IFileInfo> Files { get; }
-        string Title { get; set; }
     }
     public static class OpenFileDialogServiceExtensions {
-        public static bool ShowDialog(this IOpenFileDialogService service) {
+        public static bool ShowDialog(this IOpenDialogServiceBase service) {
             VerifyService(service);
             return service.ShowDialog(null, null);
         }
-        public static bool ShowDialog(this IOpenFileDialogService service, Action<CancelEventArgs> fileOK) {
+        public static bool ShowDialog(this IOpenDialogServiceBase service, Action<CancelEventArgs> fileOK) {
             VerifyService(service);
             return service.ShowDialog(fileOK, null);
         }
-        public static bool ShowDialog(this IOpenFileDialogService service, string directoryName) {
+        public static bool ShowDialog(this IOpenDialogServiceBase service, string directoryName) {
             VerifyService(service);
             return service.ShowDialog(null, directoryName);
         }
@@ -30,8 +36,7 @@ namespace DevExpress.Mvvm {
             VerifyService(service);
             return service.File.Return(x => x.GetFullName(), () => string.Empty);
         }
-
-        static void VerifyService(IOpenFileDialogService service) {
+        static void VerifyService(IOpenDialogServiceBase service) {
             if(service == null)
                 throw new ArgumentNullException("service");
         }

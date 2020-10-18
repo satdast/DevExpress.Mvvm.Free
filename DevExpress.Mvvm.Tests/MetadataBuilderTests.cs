@@ -233,6 +233,19 @@ namespace DevExpress.Mvvm.Tests {
                 MetadataHelper.ClearMetadata();
             }
         }
+        [Test]
+        public void MatchesRuleTest_Null() {
+            try {
+                MetadataLocator.Default = MetadataLocator.Create().AddMetadata<ValidationEntity, ValidationEntityMetadata>();
+                var entity = new ValidationEntity();
+                var v = CreateValidator<ValidationEntity, int>(x => x.MatchesRulePropery);
+                Assert.AreEqual(string.Empty, v.GetErrorText(null, entity));
+            } finally {
+                MetadataLocator.Default = null;
+                ValidationEntityMetadata.IncludeValueToError = false;
+                MetadataHelper.ClearMetadata();
+            }
+        }
         void ValidationCore(Func<object, object, string, string> getError) {
             var entity = new ValidationEntity();
 
@@ -382,6 +395,7 @@ namespace DevExpress.Mvvm.Tests {
                 Assert.AreEqual(DataAnnotationsResourcesResolver.AnnotationsResourceManager.GetString(property.Name), property.GetValue(null, null));
             }
         }
+#if !DXCORE3
         [Test]
         public void RegexTest() {
             CheckRegex(typeof(PhoneAttribute), typeof(ValidationAttribute).Assembly.GetType(typeof(ValidationAttribute).Namespace + ".PhoneAttribute"));
@@ -396,6 +410,7 @@ namespace DevExpress.Mvvm.Tests {
         static string GetPatternFromRegex(Regex regex) {
             return (string)typeof(Regex).GetField("pattern", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(regex);
         }
+#endif
         #endregion
 
         #region MetadataHelper tests
